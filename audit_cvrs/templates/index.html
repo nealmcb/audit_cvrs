@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}ElectionAudits Data Site{% endblock %}
+
+{% block content %}
+<h1>ElectionAudits Data Site</h1>
+
+<p>This site is powered by the
+<a href="http://neal.mcburnett.org/electionaudits/">
+ ElectionAudits software</a>,
+which provides software and documentation in support of
+the <a href="http://electionaudits.org/principles">
+ Principles and Best Practices for Post-Election Audits</a>
+and the other work of <a href="http://electionaudits.org/">
+ ElectionAudits.org</a>,
+ the nation's clearinghouse for election audit information.
+</p>
+<p>The software is open source, still in very active
+"alpha" development, and can be followed at its Launchpad.net site:
+</p>
+<blockquote>
+<a href="https://launchpad.net/electionaudits">https://launchpad.net/electionaudits</a>
+</blockquote>
+
+<p>That is the place to get the source code, file bugs,
+make contributions, learn about election auditing, etc.
+</p>
+
+<p>
+To get started entering your own data, see the
+README file that came with this software, or
+view the lastest version at
+<a href="http://neal.mcburnett.org/electionaudits/README">README</a>.
+See also the
+<a href="/admin/doc/models/#electionaudits">local documentation</a>
+by logging in with the admin account and password
+that you established when you initialized this site.</p>
+<p>
+The site uses the <a href="http://www.djangoproject.com/">Django</a> framework.
+See the <a href="http://docs.djangoproject.com/en/dev/">Django documentation</a>
+for background on other ways you can use and modify it.
+</p>
+
+<h2>Local Data</h2>
+
+<ul>
+<li><a href="parse/">Parse incoming data files</a></li>
+<li><a href="reports/">Audit reports</a></li>
+<li><a href="selections/">Audit selections</a> using the random seeds for the election</li>
+<li><a href="results/">Audit results</a></li>
+<li><a href="stats/">Ad-Hoc Contest Statistics Calculator</a></li>
+<li><a href="databrowse/">Browse all data</a></li>
+</ul>
+
+<h3>References</h3>
+<ul> 
+<li><a href="http://www.stat.berkeley.edu/~stark/Seminars/ksu08.pdf">Risk-limiting post-election audits</a> for a more rigorous approach to error bounds, and details on the historic Marin County Measure 1A audit by Stark et al.</li>
+<li> <a href="http://people.csail.mit.edu/rivest/AslamPopaRivest-OnAuditingElectionsWhenPrecinctsHaveDifferentSizes.pdf">On Auditing Elections When Precincts Have Different Sizes</a> by Aslam, Popa and Rivest.</li>
+<li><a href="http://people.csail.mit.edu/rivest/Rivest-ASumOfSquareRootsSSRPseudorandomSamplingMethodForElectionAudits.pdf">A "Sum of Square Roots" (SSR) Pseudorandom Sampling Method For Election Audits</a> by Ronald L. Rivest.</li>
+<li><a href="http://www.usenix.org/event/evt08/tech/full_papers/calandrino/calandrino_html/">
+In Defense of Pseudorandom Sample Selection</a> by
+Joseph A. Calandrino, J. Alex Halderman, and Edward W. Felten.</li>
+</ul>
+{% endblock %}

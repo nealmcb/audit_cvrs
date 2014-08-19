@@ -40,9 +40,11 @@ DEFAULT_APPS = (
 
 THIRD_PARTY_APPS = (
     'south',
+    'django_databrowse',
 )
 
 LOCAL_APPS = (
+    'audit_cvrs',
 )
 
 INSTALLED_APPS = DEFAULT_APPS + THIRD_PARTY_APPS + LOCAL_APPS
