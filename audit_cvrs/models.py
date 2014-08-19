@@ -46,9 +46,10 @@ class CVR(models.Model):
     cvr_text = models.TextField()
     status = models.CharField(choices=STATUS_CHOICES, default="Not seen", max_length=20)
     discrepancy = models.IntegerField(choices=DISCREPANCY_CHOICES, null=True, blank=True)
+    # notes = models.TextField(default="")
 
     def __unicode__(self):
-        return "%s" % (self.name)
+        return "%s: %s / %s" % (self.name, self.status, self.discrepancy)
 
     class Meta:
         unique_together = ("name",)  # "election", 

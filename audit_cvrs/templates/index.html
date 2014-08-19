@@ -5,7 +5,7 @@
 {% block content %}
 <h1>Audit CVRs Data Site</h1>
 
-<p>This site is powered by the audit_cvrs application, which is part of the
+<p>This site is powered by the audit_cvrs application, which is associated with the
 <a href="http://neal.mcburnett.org/electionaudits/">
  ElectionAudits software</a>,
 which provides software and documentation in support of
@@ -30,7 +30,13 @@ make contributions, learn about election auditing, etc.
 </p>
 
 <p>
-Use the manage.py parse command from the command line, then log in to the <a href="admin/">admin</a> account to get started entering your own data.
+Set the audit up by using <a href="http://www.stat.berkeley.edu/~stark/Vote/auditTools.htm">Tools for Comparison Risk-Limiting Election Audits</a> to enter the contest parameters and manifest, enter the random seed, and thus select the ballots to be audited.
+Copy and paste the "Sorted lookup table" into a file and read it in to this tool using the manage.py parse command from the command line.
+</p>
+<p>
+Next, log in to the admin account you set up, starting with the <a href="admin/audit_cvrs/cvr/">CVR</a> data to run the audit.
+Choose CVRs to assign for auditing, set the status to "assigned", retrieve the proper ballot, record the manual interpretation of the ballot, compare the manual interpretation with the machine interpretation, set the status to "Completed", and set the Discrepancy field to "Interpretations match" or to the proper discrepancy value.
+
 <!--
 see the
 README file that came with this software, or

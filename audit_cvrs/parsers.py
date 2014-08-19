@@ -111,9 +111,15 @@ I get this:
 
     "Your database backend doesn't behave properly when "
 django.db.transaction.TransactionManagementError: Your database backend doesn't behave properly when autocommit is off. Turn it on before using 'atomic'.
-(django16x)neal@rf ~/py/projects/audit_cvrs$ [19/Aug/2014 19:04:55] "GET /admin/audit_cvrs/ HTTP/1.1" 200 1887
-"""
 
+Based on this
+ Django 1.6 TransactionManagementError: database doesn't behave properly when autocommit is off - Stack Overflow
+  http://stackoverflow.com/questions/20039250/django-1-6-transactionmanagementerror-database-doesnt-behave-properly-when-aut
+seems to be an sqlite3 issue and I switched to @transaction.atomic().  Still big speedup over nothing:
+  atomic:  real  0m1.027s user 0m0.676s sys 0m0.116s
+  nothing: real 0m34.958s user 0m0.936s sys 0m0.332s
+"""
+@transaction.atomic()
 def parse_lookup(file, options):
     """Parse a lookup file: a csv file of selections from Stark's auditTools.
 
