@@ -41,15 +41,15 @@ class CVR(models.Model):
         (2,  '2-vote overstatement'),
         )
 
-    # election = models.ForeignKey(CountyElection)
-    name = models.CharField(max_length=200)
+    election = models.ForeignKey(CountyElection)
+    name = models.CharField(max_length=80)
     cvr_text = models.TextField()
     status = models.CharField(choices=STATUS_CHOICES, default="Not seen", max_length=20)
     discrepancy = models.IntegerField(choices=DISCREPANCY_CHOICES, null=True, blank=True)
-    # notes = models.TextField(default="")
+    notes = models.TextField(default="")
 
     def __unicode__(self):
         return "%s: %s / %s" % (self.name, self.status, self.discrepancy)
 
     class Meta:
-        unique_together = ("name",)  # "election", 
+        unique_together = ("election", "name")

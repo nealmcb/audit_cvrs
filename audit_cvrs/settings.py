@@ -41,6 +41,8 @@ DEFAULT_APPS = (
 THIRD_PARTY_APPS = (
     'south',
     'django_databrowse',
+    'django_extensions',
+    'debug_toolbar',
 )
 
 LOCAL_APPS = (

@@ -150,7 +150,7 @@ sorted_number,ballot, batch_label, which_ballot_in_batch
 
         logging.debug("Parse: selected CVR: \n%s" % cvr_text)
 
-        models.CVR.objects.create(name=cvr_filename[:-4], cvr_text=cvr_text)  # election=election, 
+        models.CVR.objects.create(election=election, name=cvr_filename[:-4], cvr_text=cvr_text)
 
 if __name__ == "__main__":
     main(parser)
