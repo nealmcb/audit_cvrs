@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content_title %}<a class="brand">Revisions history</a>{% endblock %}
+
+{% load markup humanize %}
+
+
+
+
+{% block content %}
+
+<table class="table">
+    <tr>
+        <th>User</th>
+        <th>Date</th>
+        <th>Comment</th>
+        <th width=15%>Type</th>
+    </tr>
+
+{% for i in object_list %}
+    <tr>
+        <td>{{i.user}}</td>
+        <td>{{i.date_created}}</td>
+        <td>{{i.comment}}
+            <div id="json_{{i.id}}" class="collapse pull-right">
+            <pre>
+            {% for j in i.version_set.all %}
+                {{j.serialized_data}}
+            {% endfor %}
+            </pre>
+            </div>
+        </td>
+        <td>
+
+            <p><button type="button" class="btn btn-mini" data-toggle="collapse" data-target="#json_{{i.id}}">
+              Toggle Details
+            </button>
+            </p>
+        </td>
+    </tr>
+{% endfor %}
+</table>
+
+
+<hr>
+<div class="pagination">
+        <span class="step-links">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+            {% endif %}
+            <span class="current">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+            </span>
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}">next</a>
+            {% endif %}
+        </span>
+</div>
+
+
+<script>
+    $(document).ready(function() {
+        $('.serialized_data').hide();
+    });
+</script>
+
+
+{% endblock %}
