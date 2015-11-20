@@ -24,14 +24,19 @@ def selection_to_cvr(batch, sequence):
     OpenCount_batch_re = re.compile(r's(?P<scanner>[0-9]+)b(?P<batch>[0-9]+)')
     m = re.match(OpenCount_batch_re, batch)
 
-    scanner = m.group('scanner')
+    if m:
+        scanner = m.group('scanner')
 
-    if scanner == "1"  and  len(sequence) >= 5:
-        filled_sequence = sequence.zfill(7)
+        if scanner == "1"  and  len(sequence) >= 5:
+            filled_sequence = sequence.zfill(7)
+        else:
+            filled_sequence = sequence.zfill(6)
+
+        return "Scanner%s~%s_side0.txt" % (scanner, filled_sequence)
+
     else:
-        filled_sequence = sequence.zfill(6)
-
-    return "Scanner%s~%s_side0.txt" % (scanner, filled_sequence)
+        # Make up a fake filename just retaining batch and sequence numbers
+        return "%s_%s.txt" % (batch, sequence.zfill(6))
 
 if __name__ == '__main__':
      import doctest
