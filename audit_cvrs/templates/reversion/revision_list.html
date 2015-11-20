@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Revisions</h2>
+    <ul>
+        {% for reversion in object_list %}
+            <li>{{reversion.date_created|date:"Y-m-d\TH:i:s"}} {{reversion.user}}: {{ reversion }}, {{ reversion.comment }}</li>
+        {% endfor %}
+    </ul>
+{% endblock %}
