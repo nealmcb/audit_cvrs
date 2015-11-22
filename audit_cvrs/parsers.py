@@ -152,7 +152,8 @@ sorted_number,ballot, batch_label, which_ballot_in_batch
             try:
                 print r
                 cvr_text = cvr.lookup_cvr(r['ballot'])
-            except:
+            except Exception, e:
+                print e
                 cvr_text = "Cast Vote Record for Ballot %s not found" % cvr_filename
 
         logging.debug("Parse: selected CVR: \n%s" % cvr_text)
