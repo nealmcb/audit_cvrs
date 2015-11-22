@@ -11,6 +11,7 @@ from optparse import make_option
 import logging
 import csv
 from datetime import datetime
+from audit_cvrs import cvr
 
 import audit_cvrs.util
 
@@ -133,6 +134,8 @@ sorted_number,ballot, batch_label, which_ballot_in_batch
     election_name = options.election_name
     election, created = models.CountyElection.objects.get_or_create(name=election_name)
 
+    cvr.init()
+
     reader = csv.DictReader(open(file), skipinitialspace=True)
 
     for r in reader:
@@ -146,7 +149,11 @@ sorted_number,ballot, batch_label, which_ballot_in_batch
         try:
             cvr_text = open("/srv/voting/audit/corla/opencount-arapahoe-2014p/cvr/" + cvr_filename).read()
         except:
-            cvr_text = "Cast Vote Record for Ballot %s not found" % cvr_filename
+            try:
+                print r
+                cvr_text = cvr.lookup_cvr(r['ballot'])
+            except:
+                cvr_text = "Cast Vote Record for Ballot %s not found" % cvr_filename
 
         logging.debug("Parse: selected CVR: \n%s" % cvr_text)
 
