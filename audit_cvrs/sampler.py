@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Reference implementation code for pseudo-random sampler
 # for election audits or other purposes.
 # Written by Ronald L. Rivest
@@ -377,7 +378,8 @@ def generate_outputs(n,with_replacement,a,b,seed,skip):
     new_output_list = [ ]
     old_output_list = [ ]
     count = 0        
-    printing_wanted = True
+    # printing_wanted = True
+    printing_wanted = False
     if printing_wanted:
         print "(6) Generating output:"
 
@@ -639,4 +641,5 @@ def main():
     print
     print "Done."
 
-main()
+if __name__ == "__main__":
+    main()

@@ -11,12 +11,11 @@ Example:
 ToDo:
     Report sorted vote totals for each contest
     Given info on number of winners per contest, list winners and margins
-    Calculate number of ballots to selection, given selected contests
+    Calculate number of ballots to select, given selected contests
     Read manifest and generate selections based on that and seed
 
-    Figure out why we're using Pandas, which adds complexity
-      integrate with notebook?
-      better csv-reading function??
+    Perhaps switch away from requirement for Pandas, which adds complexity
+     But helps allow analysis in notebook, adds some convenience.
 """
 
 import os
@@ -25,6 +24,7 @@ import logging
 from optparse import OptionParser
 from datetime import datetime
 import re
+import sampler
 import math
 import pandas as pd
 
@@ -44,6 +44,11 @@ parser.add_option("-m", "--manifest",
 
 parser.add_option("-s", "--seed",
   help="seed for random selection" )
+
+# FIXME: should be able to automatically calculate better default for number to select
+parser.add_option("-n", "--N",
+  default = 10,
+  help="number of ballots to select" )
 
 parser.add_option("-d", "--debuglevel",
   type="int", default=logging.WARNING,
@@ -84,13 +89,34 @@ class Audit(object):
 
         self.manifest = pd.read_csv(manifest)
 
-    def select_ballots(self, seed):
-        "Hardcoded for now.  Replace this with code to generate the selections from a random seed.  FIXME"
+    def select_ballots(self, seed, n):
+        "Randomly select n ballots using Rivest's sampler library"
 
-        selected_names = [ 'AB-002+10003' ]
+        old_output_list, new_output_list = sampler.generate_outputs(50, True, 0, len(self.cvr) - 1, seed, False)
+
+        # print new_output_list
+        # print sorted(new_output_list)
+
+        self.selected = self.cvr.iloc[new_output_list]
+
+        # print header row
+        print('sorted_number,ballot, batch_label, which_ballot_in_batch')
+
+        for i, (seqid, ballot) in enumerate(self.selected.iterrows()):
+            # print i, ballot
+
+            m = ballotIDre.match(ballot['BallotID'])
+
+            batch = "%s-%s" % (m.groups()[:2])
+            image = int(m.group('image'))
+
+            print "%d,%d,%s,%d" % (i + 1, seqid, batch, (image - 10000) / 2)
+
+        # Old manual kludge...
+        # selected_names = [ 'AB-002+10003' ]
         # selected_names = [ 'AB-001+11353', 'AB-005+10247', 'AB-008+11181', 'AB-009+11115', 'AB-009+11361', 'AB-010+10711', 'AB-011+10963', 'AB-013+11755', 'AB-021+10885', 'AB-022+10423', 'AB-026+10847', 'AB-027+10755', 'AB-027+10965', 'AB-027+11667', 'AB-028+10403', 'AB-028+11471', 'AB-030+11545', 'AB-035+10053', 'AB-037+10563', 'AB-039+10251', 'AB-041+10881', 'AB-048+10329', 'AB-058+10131', 'AB-061+11227', 'AB-062+11023', 'AB-064+10093', 'AB-068+10171', 'AB-069+11295', 'AB-070+10651', 'AB-073+10231', 'AB-073+11043', 'AB-073+11681', 'AB-089+10559', 'AB-089+11153', 'AB-091+11519', 'AB-095+11555', 'AB-096+10989', 'AB-101+11667', 'AB-113+11749', 'AB-115+10829', 'AB-128+10729', 'AB-132+11463', 'AB-132+11899', 'AB-141+11433' ]
 
-        self.selected = self.cvr[self.cvr.BallotID.isin(selected_names)]
+        #self.selected = self.cvr[self.cvr.id.isin(selected_names)]
 
 def choice_num(choiceid):
     m = choiceIDre.match(choiceid)
@@ -117,7 +143,7 @@ def display(self, audit):
 
     ballotID = self['BallotID']
     m = ballotIDre.match(ballotID)
-    image = int(m.groupdict()['image'])
+    image = int(m.group('image'))
     show = "%s #%d (%s):\n" % (ballotID, (image - 10000) / 2, self['BallotStyleID'])
 
     results = []
@@ -179,7 +205,7 @@ def main(parser):
     audit = Audit(options.prefix, options.manifest)
 
     if options.seed:
-        audit.select_ballots(options.seed)
+        audit.select_ballots(options.seed, options.N)
 
         i = 0
         for id, s in audit.selected.iterrows():
