@@ -9,6 +9,14 @@ sampler_version = "November 14, 2011"
 # by Prof. Philip Stark (U.C. Berkeley) regarding election auditing.
 # Tested using python version 2.6.7.   (see www.python.org)
 # (Will not work with Python version 3, e.g. 3.x.y)
+# (Note added 2014-09-07: As per a suggestion by Chris Jerdonek, one should
+#  consider this proposal as based on the use of  UTF-8 encoding for strings 
+#  throughout.  This comment resolves some potential ambiguities about how 
+#  strings are converted to byte sequences before hashing, and the types of
+#  strings input by raw_input, etc.  See
+#    https://github.com/cjerdonek/rivest-sampler-tests
+# for more discussion and test-cases.
+# )
 
 """
 This program provides a reference implementation of a recommended procedure 
