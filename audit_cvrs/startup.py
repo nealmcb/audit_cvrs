@@ -6,4 +6,4 @@ def run():
 
     print("Hello, world")
 
-    cvr.init()
+    # cvr.init()

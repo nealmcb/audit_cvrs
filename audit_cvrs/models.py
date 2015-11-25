@@ -27,10 +27,11 @@ class CVR(models.Model):
     "A Cast Vote Record: the selections made on a given ballot"
 
     STATUS_CHOICES = (
-        ("Not seen", "Not seen"),
+        ("Selected", "Selected"),
         ("Assigned", "Assigned"),
         ("Completed", "Completed"),
         ("Incomplete", "Incomplete"),
+        ("Other", "Other"),
         )
 
     DISCREPANCY_CHOICES = (

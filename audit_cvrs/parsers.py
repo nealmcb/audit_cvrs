@@ -134,7 +134,7 @@ sorted_number,ballot, batch_label, which_ballot_in_batch
     election_name = options.election_name
     election, created = models.CountyElection.objects.get_or_create(name=election_name)
 
-    cvr.init()
+    # cvr.init()
 
     reader = csv.DictReader(open(file), skipinitialspace=True)
 
@@ -158,7 +158,9 @@ sorted_number,ballot, batch_label, which_ballot_in_batch
 
         logging.debug("Parse: selected CVR: \n%s" % cvr_text)
 
-        models.CVR.objects.create(election=election, name=cvr_filename[:-4], cvr_text=cvr_text)
+        ballot_name = "%s_%s_%s_%s" % (r['sorted_number'], r['ballot'], r['batch_label'], r['which_ballot_in_batch'])
+
+        models.CVR.objects.create(election=election, name=ballot_name, cvr_text=cvr_text, status="Selected")
 
 if __name__ == "__main__":
     main(parser)

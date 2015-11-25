@@ -92,10 +92,10 @@ class Audit(object):
     def select_ballots(self, seed, n):
         "Randomly select n ballots using Rivest's sampler library"
 
-        old_output_list, new_output_list = sampler.generate_outputs(50, True, 0, len(self.cvr) - 1, seed, False)
+        old_output_list, new_output_list = sampler.generate_outputs(16, True, 0, len(self.cvr) - 1, seed, False)
 
         # print new_output_list
-        # print sorted(new_output_list)
+        new_output_list = sorted(new_output_list)
 
         self.selected = self.cvr.iloc[new_output_list]
 

@@ -6,6 +6,8 @@ from collections import OrderedDict
 #ESS_CVR_FILE = "/srv/voting/audit/corla/pilot-cvr-lat/ES&S/Jefferson/2nd Submission/IncompleteJeffcoCastVoteRecord.csv"
 ESS_CVR_FILE = "/srv/voting/audit/corla/jeffco-2015/box-list-final.csv"
 
+CVRS = {}
+
 def read_ess_cvr(path):
     with open(path, 'rU') as data:
         reader = csv.DictReader(data)
