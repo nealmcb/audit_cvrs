@@ -4,7 +4,10 @@
     <h2>Revisions</h2>
     <ul>
         {% for reversion in object_list %}
-            <li>{{reversion.date_created|date:"Y-m-d\TH:i:s"}} {{reversion.user}}: {{ reversion }}, {{ reversion.comment }}</li>
+            <li>{{reversion.date_created|date:"Y-m-d\TH:i:s"}} {{reversion.user}}: {{ reversion }}, {{ reversion.comment }},
+	      {% for version in reversion.version_set.all %}
+	      {{ version.object_version.object.notes }} </li>
+            {% endfor %}
         {% endfor %}
     </ul>
 {% endblock %}
