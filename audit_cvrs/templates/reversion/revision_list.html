@@ -1,13 +1,21 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h2>Revisions</h2>
-    <ul>
-        {% for reversion in object_list %}
-            <li>{{reversion.date_created|date:"Y-m-d\TH:i:s"}} {{reversion.user}}: {{ reversion }}, {{ reversion.comment }},
-	      {% for version in reversion.version_set.all %}
-	      {{ version.object_version.object.notes }} </li>
+    <h2>{% block title %} Log of Manual Inspection of Selected CVRs {% endblock %}</h2>
+    <p>This a log of all the updates made during this Risk Limiting Audit to the status of the selected CVRs.</p>
+    <table border="1">
+      <tr><th>Timestamp</th> <th>User</th> <th>Selection#_CVR#_Batch_Seq: Status</th> <th>Changes</th> <th>Notes</th></tr>
+      {% for reversion in object_list %}
+      <tr>
+          <td>{{reversion.date_created|date:"Y-m-d\TH:i:s"}}</td>
+	  <td>{{reversion.user}}</td>
+	  <td>{{ reversion }}</td>
+	  <td>{{ reversion.comment }}</td>
+	  <td>{% for version in reversion.version_set.all %}
+	    {{ version.object_version.object.notes }}
             {% endfor %}
-        {% endfor %}
-    </ul>
+	  </td>
+      </tr>
+      {% endfor %}
+    </table>
 {% endblock %}
