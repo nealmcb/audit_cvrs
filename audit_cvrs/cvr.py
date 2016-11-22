@@ -1,4 +1,5 @@
-# read in and cache csv file of Cast Vote Records
+#!/usr/bin/env python
+"read in and cache csv file of Cast Vote Records"
 
 import csv
 from collections import OrderedDict
@@ -32,4 +33,8 @@ def lookup_cvr(id):
 
 
 if __name__ == "__main__":
+    "Run a simple test to read in a test file and print the 2nd record"
+
+    print("Testing\n")
     init("/home/neal/py/projects/audit_cvrs/test/ess-test.cvr")
+    print("\nSecond record:\n%s" % lookup_cvr("2"))

@@ -3,16 +3,14 @@
 
 %InsertOptionParserUsage%
 
-Used for now from /srv/voting/audit/corla/cbg/arapahoe/1113cvr/corla_anal.ipynb
+Example: print CVRs for random selections from files with given prefix using given manifest and random seed
 
-Example:
     audit_cbg.py -p co_arapahoe_2013g -m ../ballotManifest.csv -s 27405096441431501170
 
 ToDo:
     Report sorted vote totals for each contest
     Given info on number of winners per contest, list winners and margins
     Calculate number of ballots to select, given selected contests
-    Read manifest and generate selections based on that and seed
 
     Perhaps switch away from requirement for Pandas, which adds complexity
      But helps allow analysis in notebook, adds some convenience.
@@ -47,7 +45,7 @@ parser.add_option("-s", "--seed",
 
 # FIXME: should be able to automatically calculate better default for number to select
 parser.add_option("-n", "--N",
-  default = 10,
+  type="int", default = 10,
   help="number of ballots to select" )
 
 parser.add_option("-d", "--debuglevel",
@@ -87,12 +85,15 @@ class Audit(object):
 
         self.cvr = pd.read_csv(prefix + '.cvr.csv')
 
-        self.manifest = pd.read_csv(manifest)
+        # not used.  does this date from an earlier version?  self.manifest = pd.read_csv(manifest)
 
     def select_ballots(self, seed, n):
         "Randomly select n ballots using Rivest's sampler library"
 
-        old_output_list, new_output_list = sampler.generate_outputs(16, True, 0, len(self.cvr) - 1, seed, False)
+        N = len(self.cvr) - 1
+        print("Ballot count: %d" % N)
+
+        old_output_list, new_output_list = sampler.generate_outputs(n, True, 0, N, seed, False)
 
         # print new_output_list
         new_output_list = sorted(new_output_list)
