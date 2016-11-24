@@ -76,6 +76,8 @@ def parse(args, options):
     else:
         loglevel = logging.INFO
 
+    print loglevel
+
     logging.basicConfig(level=loglevel) # format='%(message)s'
 
     logging.debug("args = %s" % list(args))
@@ -123,6 +125,7 @@ seems to be an sqlite3 issue and I switched to @transaction.atomic().  Still big
 @transaction.atomic()
 def parse_lookup(file, options):
     """Parse a lookup file: a csv file of selections from Stark's auditTools.
+    For each selection, look up the full Cast Vote Record via cvr.py
 
     Sample data;
 
@@ -134,7 +137,7 @@ sorted_number,ballot, batch_label, which_ballot_in_batch
     election_name = options.election_name
     election, created = models.CountyElection.objects.get_or_create(name=election_name)
 
-    # cvr.init()
+    cvr.init()
 
     reader = csv.DictReader(open(file), skipinitialspace=True)
 
@@ -146,6 +149,7 @@ sorted_number,ballot, batch_label, which_ballot_in_batch
 
         logging.debug("Parse selection: %s %s, CVR filename = %s" % (batch_label, sequence, cvr_filename))
 
+        """
         try:
             cvr_text = open("/srv/voting/audit/corla/opencount-arapahoe-2014p/cvr/" + cvr_filename).read()
         except:
@@ -156,6 +160,10 @@ sorted_number,ballot, batch_label, which_ballot_in_batch
                 print e
                 cvr_text = "Cast Vote Record for Ballot %s not found" % cvr_filename
 
+        """
+
+        print r
+        cvr_text = cvr.lookup_cvr(r['ballot'])
         logging.debug("Parse: selected CVR: \n%s" % cvr_text)
 
         ballot_name = "%s_%s_%s_%s" % (r['sorted_number'], r['ballot'], r['batch_label'], r['which_ballot_in_batch'])
