@@ -7,6 +7,25 @@ logs events during the audit with timestamps, and produces an audit report.
 
 The user interface is a web application based on a local Django server and can support multiple users simultaneously.
 
+# Goals
+It is important to emphasize that the output of the audit should be a report providing evidence about the election outcome, as explained in the paper [Evidence-Based Elections Stark and Wagner](http://www.stat.berkeley.edu/~stark/Preprints/evidenceVote12.pdf).  An example of this sort of report is provided in the documentation.  This audit support software is only used for convenience, using publicly verifiable inputs in a transparent way and producing publicly verifiable results.  It thus does not present any new issues of [Software Independence (Rivest and Wack)](http://people.csail.mit.edu/rivest/RivestWack-OnTheNotionOfSoftwareIndependenceInVotingSystems.pdf)
+
+The eventual goals of this software are:
+
+ * Load all the voting system CVR or batch count data in automatically
+ * Help figure out what contests to audit
+ * Calculate and print audit workload information, configuration, plan etc.
+ * Publish the data to be audited on the web, publish a commitment (hash) in various blockchains etc.
+ * Prompt for the generation of random input, i.e. rolling of the dice
+ * Perform the ballot selections in a standardized way based on that random input and the CVRs
+ * Print out a tally sheet to give to the people who will retrieve the boxes and pull the ballots
+ * Include useful information to find the ballot in the box.  E.g. tell them which end of the stack of ballots to start counting from, how many to count when starting from that end, etc.
+ * Provide entry form for manual CVR, customized to the expected ballot style (in the order found on the ballot) for entry of the auditors own vote interpretations into the database
+ * Compare that manual CVR with the original system CVR and record discrepancies
+ * Lead auditors thru a good procedure for discrepancies, e.g. did they find the right ballot (perhaps check ballot style up-front?), can you help them find it, etc.
+ * Track the progress of the audit in reducing risk, how many ballots remain according to the plan, time estimates
+ * Produce a nice audit report at the end, including the plan, results, calculated risk levels, an audit log with timestamps for each iteration of each step above, timing summary information, etc
+
 # Installation
 
 Tested on Ubuntu Trusty 14.04 with Django 1.6.1
