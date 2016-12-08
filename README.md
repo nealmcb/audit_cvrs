@@ -54,6 +54,11 @@ Common steps:
 
 * Run the election
 * Obtain overall margin of victory for audit calculations
+
+The command `rlacalc.py -m 2` will calculate the expected sample size for a 2% margin.
+
+See `rlacalc.py -h` for additional options.
+
 * Publish Tally and Cast Vote Records
 
 ## To audit Clear Ballot election
