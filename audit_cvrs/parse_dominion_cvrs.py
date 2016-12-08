@@ -14,6 +14,7 @@ parse_dominion_cvrs.py > cvr.csv
 
 Todo:
 
+Rip out unused "votes" variable
 Perhaps convert TabulatorID and BatchID into BoxID to help preserve unlinkability.
 Perhaps sort output by something like BoxID, if that would help match results with Philip's auditTools?
 

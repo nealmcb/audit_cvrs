@@ -24,7 +24,7 @@ class CountyElection(models.Model):
         return "%s" % (self.name)
 
 class CVR(models.Model):
-    "A Cast Vote Record: the selections made on a given ballot"
+    "A Cast Vote Record: the selections made on a given ballot (currently just in text format), where the paper ballot can be found, and related status and audit result"
 
     STATUS_CHOICES = (
         ("Selected", "Selected"),

@@ -1,5 +1,6 @@
 #!/usr/bin/python
 """audit_cbg: assist in auditing cast vote records of ballots from Clear Ballot Group scans.
+Produce ballot location info for selections.lookup file, along with more detail
 
 %InsertOptionParserUsage%
 
@@ -60,7 +61,8 @@ ballotIDre = re.compile(r'(?P<type>..)-(?P<batch>[0-9]*)\+(?P<image>[0-9]*)')
 
 class Audit(object):
     def __init__(self, prefix, manifest):
-        "Create an audit object based on the CBG files starting with given filename prefix"
+        """Create an Audit object with contests, choices, and CVRs,
+        based on the CBG files starting with given filename prefix"""
 
         self.choices = pd.read_csv(prefix + '.choices.csv')
         self.contests = pd.read_csv(prefix + '.contests.csv')
@@ -83,6 +85,7 @@ class Audit(object):
                 name += " on " + self.contestid_name[contest]
             self.choiceid_name[choice_row[0]] = name
 
+        # Read in the cast vote records
         self.cvr = pd.read_csv(prefix + '.cvr.csv')
 
         # not used.  does this date from an earlier version?  self.manifest = pd.read_csv(manifest)
@@ -100,7 +103,7 @@ class Audit(object):
 
         self.selected = self.cvr.iloc[new_output_list]
 
-        # print header row
+        # print header row, with same column names as Stark's auditTools.htm
         print('sorted_number,ballot, batch_label, which_ballot_in_batch')
 
         for i, (seqid, ballot) in enumerate(self.selected.iterrows()):

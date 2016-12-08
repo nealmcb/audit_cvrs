@@ -1,6 +1,7 @@
 **audit_cvrs** helps auditors manage a ballot-level risk-limiting post-election audit.
 It reads in a variety of cast vote record formats,
-does the random selection in the quasi-standard way that [Philip Stark's online tool](https://www.stat.berkeley.edu/~stark/Java/Html/auditTools.htm) does,
+does the random selection using Rivest's quasi-standard "sampler" method, as used by
+[Philip Stark's online tool](https://www.stat.berkeley.edu/~stark/Java/Html/auditTools.htm),
 allows auditors to assign and track the status of ballots as they're audited,
 provides point-and-click access to selected CVRs to provide the system interpretation of the ballot,
 logs events during the audit with timestamps, and produces an audit report.
@@ -8,16 +9,25 @@ logs events during the audit with timestamps, and produces an audit report.
 The user interface is a web application based on a local Django server and can support multiple users simultaneously.
 
 # Goals
-It is important to emphasize that the output of the audit should be a report providing evidence about the election outcome, as explained in the paper [Evidence-Based Elections Stark and Wagner](http://www.stat.berkeley.edu/~stark/Preprints/evidenceVote12.pdf).  An example of this sort of report is provided in the documentation.  This audit support software is only used for convenience, using publicly verifiable inputs in a transparent way and producing publicly verifiable results.  It thus does not present any new issues of [Software Independence (Rivest and Wack)](http://people.csail.mit.edu/rivest/RivestWack-OnTheNotionOfSoftwareIndependenceInVotingSystems.pdf)
+It is important to emphasize that the output of an audit should be
+a report providing evidence related to election outcome, details about and explanations of any discrepancies found,
+and conclusions based on that evidence.  See the paper
+[Evidence-Based Elections Stark and Wagner](http://www.stat.berkeley.edu/~stark/Preprints/evidenceVote12.pdf)
+and the report [Risk-Limiting Post-Election Audits: Why and How](http://www.stat.berkeley.edu/~stark/Preprints/RLAwhitepaper12.pdf).
+An example of this sort of report is provided in the documentation.
+This audit support software is only used for convenience,
+using publicly verifiable inputs in a transparent way and producing publicly verifiable results.
+It thus does not present any new issues of
+[Software Independence (Rivest and Wack)](http://people.csail.mit.edu/rivest/RivestWack-OnTheNotionOfSoftwareIndependenceInVotingSystems.pdf).
 
 The eventual goals of this software are:
 
- * Load all the voting system CVR or batch count data in automatically
- * Help figure out what contests to audit
+ * Load and parse all the voting system CVR data automatically
+ * Support audits of all contests
  * Calculate and print audit workload information, configuration, plan etc.
  * Publish the data to be audited on the web, publish a commitment (hash) in various blockchains etc.
- * Prompt for the generation of random input, i.e. rolling of the dice
- * Perform the ballot selections in a standardized way based on that random input and the CVRs
+ * Prompt for the rolling of the dice and input of the resulting random seed
+ * Perform the ballot selections in a standardized way based on that random seed and the CVRs
  * Print out a tally sheet to give to the people who will retrieve the boxes and pull the ballots
  * Include useful information to find the ballot in the box.  E.g. tell them which end of the stack of ballots to start counting from, how many to count when starting from that end, etc.
  * Provide entry form for manual CVR, customized to the expected ballot style (in the order found on the ballot) for entry of the auditors own vote interpretations into the database
