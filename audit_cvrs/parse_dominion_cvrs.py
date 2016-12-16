@@ -28,6 +28,18 @@ import json
 import csv
 import collections
 import logging
+import sampler
+
+def select_ballots(seed, n, N):
+    "Randomly select n of N ballots using Rivest's sampler library"
+
+    old_output_list, new_output_list = sampler.generate_outputs(n, True, 0, N, seed, False)
+
+    new_output_list = sorted(new_output_list)
+
+    logging.warning("Output list: %s" % new_output_list)
+
+    return (new_output_list)
 
 logging.basicConfig() #level=logging.DEBUG)
 
@@ -70,11 +82,23 @@ logging.info("First manifest item: %s" % candidateManifest['List'][1])
 
 print(headers)
 
+seed = "1234"
+N = 1344
+n = 16
+
+selected = select_ballots(seed, n, N)
+
+sample_lookup_name = "test.lookup"
+sample_lookup = open(sample_lookup_name, "w")
+
+sample_lookup.write('sorted_number,ballot, batch_label, which_ballot_in_batch\n')
+
 with open("CvrExport.json") as jsonFile:
-  rawJson = jsonFile.read()
+  rawJson = jsonFile.read()	# FIXME: better to use ijson here and not read it all in at once
   cvrs = json.loads(rawJson)
 
   n = 0
+  sample_index = 0
   totals = [0] * numCandidates
 
   # Process each session as a ballot
@@ -133,12 +157,20 @@ with open("CvrExport.json") as jsonFile:
       print(row)
       totals = [totals[i] + int(voteArray[i])  for i in xrange(numCandidates)]
 
+      if n in selected:
+        sample_index += 1
+        batch = "%s_%s_%s" % (session['TabulatorId'], session['BatchId'], session['CountingGroupId'])
+        sample_lookup.write("%d,%d,%s,%d\n" % (sample_index, n, batch, session['RecordId']))
+
     # row = ("%s,%s,%s" % (sessionInfo, ballotInfo, votes))
     # remove trailing comma
     # print(row.strip(','))
 
     #if not original.get(["IsCurrent"]):
     #  print "not current: %d: %s" % (n, original["IsCurrent"])
+
+if n != N:
+  logging.error("Ballot count mismatch: told %d, found %d" % (N, n))
 
 candidateRevIndex = {v: k for k, v in candidateIndex.iteritems()}
 logging.warning("Candidate totals: %s" % '\n'.join([str((totals[i], candidates[candidateRevIndex[i]])) for i in xrange(numCandidates)]))
