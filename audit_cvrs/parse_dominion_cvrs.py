@@ -14,13 +14,19 @@ parse_dominion_cvrs.py > cvr.csv
 
 Todo:
 
-Rip out unused "votes" variable
+Cleanup:
+  Rip out unused "votes" variable
+  make into a proper module, usable from other code, with a main
+
+Optionally record MarkDensity information (modifying current debugging code)
+Optionally record data on Modified (adjudicated) ballots
+ perhaps integrate with NOVOTE output
+Summarize MarkDensity variance by ballot, identify interesting ones
+
+Parse ElectionId and use it to name CountyElection in electionAudits
+
 Perhaps convert TabulatorID and BatchID into BoxID to help preserve unlinkability.
 Perhaps sort output by something like BoxID, if that would help match results with Philip's auditTools?
-
-FIXME:
-some columns not lining up
-parse ElectionId and use it to name CountyElection
 """
 
 import sys
@@ -28,6 +34,7 @@ import json
 import csv
 import collections
 import logging
+import zipfile
 import sampler
 
 def select_ballots(seed, n, N):
@@ -41,7 +48,7 @@ def select_ballots(seed, n, N):
 
     return (new_output_list)
 
-logging.basicConfig() #level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 with open("CandidateManifest.json") as jsonFile:
   rawJson = jsonFile.read()
@@ -93,13 +100,22 @@ sample_lookup = open(sample_lookup_name, "w")
 
 sample_lookup.write('sorted_number,ballot, batch_label, which_ballot_in_batch\n')
 
-with open("CvrExport.json") as jsonFile:
-  rawJson = jsonFile.read()	# FIXME: better to use ijson here and not read it all in at once
-  cvrs = json.loads(rawJson)
+n = 0
+sample_index = 0
+totals = [0] * numCandidates
 
-  n = 0
-  sample_index = 0
-  totals = [0] * numCandidates
+logging.debug("Density:TabulatorId,BatchId,RecordId,CountingGroupId,IsAmbiguous,MarkDensity,Rank,PartyId")
+
+zipfile = zipfile.ZipFile("CVR_Export_20161123112124.zip")
+
+# with open("CvrExport.json") as jsonFile:
+for zipinfo in zipfile.infolist():
+ logging.info("seeing %s" % zipinfo.filename)
+
+ if "CvrExport" in zipinfo.filename:
+  rawJson = zipfile.open(zipinfo.filename).read()
+  #rawJson = jsonFile.read()	# FIXME: better to use ijson here and not read it all in at once
+  cvrs = json.loads(rawJson)
 
   # Process each session as a ballot
   for session in cvrs['Sessions']:
@@ -145,7 +161,7 @@ with open("CvrExport.json") as jsonFile:
           votes += "NOVOTE:%s," % (mark['CandidateId'])
           logging.error("NOVOTE for %s" % mark)
 
-      logging.debug("%s,%s,%s,%s,%s" % (sessionInfo, mark['IsAmbiguous'], mark['MarkDensity'], mark['Rank'], mark.get('PartyId')))
+      logging.debug("Density:%s,%s,%s,%s,%s" % (sessionInfo, mark['IsAmbiguous'], mark['MarkDensity'], mark['Rank'], mark.get('PartyId')))
 
       # print("%s %d" % (contest.keys(), len(contest['Marks'])))
       # votes += 
