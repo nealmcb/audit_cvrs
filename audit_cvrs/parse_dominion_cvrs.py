@@ -10,7 +10,9 @@ Print out a cvr.csv file
 Usage:
 
 cd dominion-cvr-directory
-parse_dominion_cvrs.py > cvr.csv
+parse_dominion_cvrs.py zip-file > cvr.csv
+
+produces test.lookup file
 
 Todo:
 
@@ -48,145 +50,155 @@ def select_ballots(seed, n, N):
 
     return (new_output_list)
 
-logging.basicConfig(level=logging.DEBUG)
+def parse():
 
-with open("CandidateManifest.json") as jsonFile:
-  rawJson = jsonFile.read()
-  logging.debug("CandidateManifest.json raw contents:\n%s" % rawJson)
+    logging.basicConfig(level=logging.DEBUG)
 
-  candidateManifest = json.loads(rawJson)
+    zipf = zipfile.ZipFile(sys.argv[1])
 
-  unordered_candidates = {}
+    with zipf.open("CandidateManifest.json") as jsonFile:
+      rawJson = jsonFile.read()
+      logging.debug("CandidateManifest.json raw contents:\n%s" % rawJson)
 
-  for candidate in candidateManifest['List']:
-    unordered_candidates[candidate['Id']] = candidate['Description']
+      candidateManifest = json.loads(rawJson)
 
-  logging.debug(sorted(unordered_candidates.items()))
+      unordered_candidates = {}
 
-candidates = collections.OrderedDict(sorted(unordered_candidates.items()))
-numCandidates = len(candidates)
+      for candidate in candidateManifest['List']:
+        unordered_candidates[candidate['Id']] = candidate['Description']
 
-headers = "TabulatorId,BatchId,RecordId,CountingGroupId,IsCurrent,BallotTypeId,PrecinctPortionId,"
+      logging.debug(sorted(unordered_candidates.items()))
 
-numColumns = numCandidates + headers.count(",")
+    candidates = collections.OrderedDict(sorted(unordered_candidates.items()))
+    numCandidates = len(candidates)
 
-# Produce a candidateIndex to map candidate Ids from json to sequential numbers starting at 0, as they should appear in the CSV
-candidateIndex = {}
-i = 0
-for id, name in candidates.iteritems():
-  if "," in name:
-    print "Error: Found , in name"
-  headers += "%s," % name
-  candidateIndex[id] = i
-  i += 1
+    headers = "TabulatorId,BatchId,RecordId,CountingGroupId,IsCurrent,BallotTypeId,PrecinctPortionId,"
 
-headers = headers.strip(",")
+    numColumns = numCandidates + headers.count(",")
 
-logging.info("Found %d candidates:\n%s" % (numCandidates, candidates))
-logging.info(candidateIndex)
+    # Produce a candidateIndex to map candidate Ids from json to sequential numbers starting at 0, as they should appear in the CSV
+    candidateIndex = {}
+    i = 0
+    for id, name in candidates.iteritems():
+      if "," in name:
+        print "Error: Found , in name"
+      headers += "%s," % name
+      candidateIndex[id] = i
+      i += 1
 
-logging.info("First manifest item: %s" % candidateManifest['List'][1])
+    headers = headers.strip(",")
 
-print(headers)
+    logging.info("Found %d candidates:\n%s" % (numCandidates, candidates))
+    logging.info(candidateIndex)
 
-seed = "1234"
-N = 1344
-n = 16
+    logging.info("First manifest item: %s" % candidateManifest['List'][1])
 
-selected = select_ballots(seed, n, N)
+    print(headers)
 
-sample_lookup_name = "test.lookup"
-sample_lookup = open(sample_lookup_name, "w")
+    seed = "1234"
+    N = 1344
+    n = 16
 
-sample_lookup.write('sorted_number,ballot, batch_label, which_ballot_in_batch\n')
+    selected = select_ballots(seed, n, N)
 
-n = 0
-sample_index = 0
-totals = [0] * numCandidates
+    sample_lookup_name = "test.lookup"
+    sample_lookup = open(sample_lookup_name, "w")
 
-logging.debug("Density:TabulatorId,BatchId,RecordId,CountingGroupId,IsAmbiguous,MarkDensity,Rank,PartyId")
+    sample_lookup.write('sorted_number,ballot, batch_label, which_ballot_in_batch\n')
 
-zipfile = zipfile.ZipFile("CVR_Export_20161123112124.zip")
+    n = 0
+    sample_index = 0
+    totals = [0] * numCandidates
 
-# with open("CvrExport.json") as jsonFile:
-for zipinfo in zipfile.infolist():
- logging.info("seeing %s" % zipinfo.filename)
+    logging.debug("Density:TabulatorId,BatchId,RecordId,CountingGroupId,IsAmbiguous,MarkDensity,Rank,PartyId")
 
- if "CvrExport" in zipinfo.filename:
-  rawJson = zipfile.open(zipinfo.filename).read()
-  #rawJson = jsonFile.read()	# FIXME: better to use ijson here and not read it all in at once
-  cvrs = json.loads(rawJson)
+    # with open("CvrExport.json") as jsonFile:
+    for zipinfo in zipf.infolist():
+     logging.info("seeing %s" % zipinfo.filename)
 
-  # Process each session as a ballot
-  for session in cvrs['Sessions']:
-    n += 1
+     if "CvrExport" in zipinfo.filename:
+      rawJson = zipf.open(zipinfo.filename).read()
+      #rawJson = jsonFile.read()	# FIXME: better to use ijson here and not read it all in at once
+      cvrs = json.loads(rawJson)
 
-    # print("Session keys: %s" % session.keys())
+      # Process each session as a ballot
+      for session in cvrs['Sessions']:
+        n += 1
 
-    sessionInfo = "%s,%s,%s,%s" % (session['TabulatorId'], session['BatchId'], session['RecordId'], session['CountingGroupId'])
+        # print("Session keys: %s" % session.keys())
 
-    original = session['Original']
+        sessionInfo = "%s,%s,%s,%s" % (session['TabulatorId'], session['BatchId'], session['RecordId'], session['CountingGroupId'])
 
-    modified = session.get('Modified', None)
-    if modified:
-      if original['IsCurrent'] != False:
-        logging.error("Surprised to see IsCurrent != false given presence of Modified record. It has IsCurrent=%s\n%s" % (modified['IsCurrent'], original))
+        original = session['Original']
 
-      original = modified
+        modified = session.get('Modified', None)
+        if modified:
+          if original['IsCurrent'] != False:
+            logging.error("Surprised to see IsCurrent != false given presence of Modified record. It has IsCurrent=%s\n%s" % (modified['IsCurrent'], original))
 
-    # print original.keys()
+          original = modified
 
-    ballotInfo = "%s,%s,%s" % (original['IsCurrent'], original['BallotTypeId'], original['PrecinctPortionId'])
+        # print original.keys()
 
-    voteArray = ["0"] * numCandidates
-    votes = ""
-    for contest in original['Contests']:
-      votes += "%s," % contest['Id']
+        ballotInfo = "%s,%s,%s" % (original['IsCurrent'], original['BallotTypeId'], original['PrecinctPortionId'])
 
-      marks = contest['Marks']
-      if len(marks) > 1:
-        votemarks = [mark for mark in marks if mark['IsVote']]
-        if len(votemarks) > 1:
-          logging.error("FIXME: More than 1 IsVote mark: I can't handle this yet. Council race? %s" % marks) # '\n'.join(list(marks)))
-        marks = votemarks
-        
-      if len(marks) == 0:
-        votes += "-1,"
-      else:
-        mark = marks[0]
-        if mark['IsVote']:
-          voteArray[candidateIndex[mark['CandidateId']]] = "1"
-          votes += "%s," % mark['CandidateId']
+        voteArray = ["0"] * numCandidates
+        votes = ""
+        for contest in original['Contests']:
+          votes += "%s," % contest['Id']
+
+          marks = contest['Marks']
+          if len(marks) > 1:
+            votemarks = [mark for mark in marks if mark['IsVote']]
+            if len(votemarks) > 1:
+              logging.error("FIXME: More than 1 IsVote mark: I can't handle this yet. Council race? %s" % marks) # '\n'.join(list(marks)))
+            marks = votemarks
+
+          if len(marks) == 0:
+            votes += "-1,"
+          else:
+            mark = marks[0]
+            if mark['IsVote']:
+              voteArray[candidateIndex[mark['CandidateId']]] = "1"
+              votes += "%s," % mark['CandidateId']
+            else:
+              votes += "NOVOTE:%s," % (mark['CandidateId'])
+              logging.error("NOVOTE for %s" % mark)
+
+          logging.debug("Density:%s,%s,%s,%s,%s" % (sessionInfo, mark['IsAmbiguous'], mark['MarkDensity'], mark['Rank'], mark.get('PartyId')))
+
+          # print("%s %d" % (contest.keys(), len(contest['Marks'])))
+          # votes += 
+
+        row = ("%s,%s,%s" % (sessionInfo, ballotInfo, ','.join([v for v in voteArray])))
+        if row.count(",") + 1 != numColumns:
+          logging.error("FIXME: problem in row, %d columns, not %d. %s" % (row.count(",") + 1, numColumns, row) )
         else:
-          votes += "NOVOTE:%s," % (mark['CandidateId'])
-          logging.error("NOVOTE for %s" % mark)
+          print(row)
+          totals = [totals[i] + int(voteArray[i])  for i in xrange(numCandidates)]
 
-      logging.debug("Density:%s,%s,%s,%s,%s" % (sessionInfo, mark['IsAmbiguous'], mark['MarkDensity'], mark['Rank'], mark.get('PartyId')))
+          if n in selected:
+            sample_index += 1
+            batch = "%s_%s_%s" % (session['TabulatorId'], session['BatchId'], session['CountingGroupId'])
+            sample_lookup.write("%d,%d,%s,%d\n" % (sample_index, n, batch, session['RecordId']))
 
-      # print("%s %d" % (contest.keys(), len(contest['Marks'])))
-      # votes += 
+        # row = ("%s,%s,%s" % (sessionInfo, ballotInfo, votes))
+        # remove trailing comma
+        # print(row.strip(','))
 
-    row = ("%s,%s,%s" % (sessionInfo, ballotInfo, ','.join([v for v in voteArray])))
-    if row.count(",") + 1 != numColumns:
-      logging.error("FIXME: problem in row, %d columns, not %d. %s" % (row.count(",") + 1, numColumns, row) )
-    else:
-      print(row)
-      totals = [totals[i] + int(voteArray[i])  for i in xrange(numCandidates)]
+        #if not original.get(["IsCurrent"]):
+        #  print "not current: %d: %s" % (n, original["IsCurrent"])
 
-      if n in selected:
-        sample_index += 1
-        batch = "%s_%s_%s" % (session['TabulatorId'], session['BatchId'], session['CountingGroupId'])
-        sample_lookup.write("%d,%d,%s,%d\n" % (sample_index, n, batch, session['RecordId']))
+    if n != N:
+      logging.error("Ballot count mismatch: told %d, found %d" % (N, n))
 
-    # row = ("%s,%s,%s" % (sessionInfo, ballotInfo, votes))
-    # remove trailing comma
-    # print(row.strip(','))
+    candidateRevIndex = {v: k for k, v in candidateIndex.iteritems()}
 
-    #if not original.get(["IsCurrent"]):
-    #  print "not current: %d: %s" % (n, original["IsCurrent"])
+    for i in xrange(numCandidates):
+        logging.warning("Total: %s" % str((totals[i], candidates[candidateRevIndex[i]])))
 
-if n != N:
-  logging.error("Ballot count mismatch: told %d, found %d" % (N, n))
+def main():
+    parse()
 
-candidateRevIndex = {v: k for k, v in candidateIndex.iteritems()}
-logging.warning("Candidate totals: %s" % '\n'.join([str((totals[i], candidates[candidateRevIndex[i]])) for i in xrange(numCandidates)]))
+if __name__ == "__main__":
+    main()
