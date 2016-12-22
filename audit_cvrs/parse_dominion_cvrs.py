@@ -56,18 +56,45 @@ def parse():
 
     zipf = zipfile.ZipFile(sys.argv[1])
 
+    with zipf.open("ContestManifest.json") as jsonFile:
+        rawJson = jsonFile.read()
+        logging.debug("ContestManifest.json raw contents:\n%s" % rawJson)
+
+        contestManifest = json.loads(rawJson)
+
+        contests = collections.OrderedDict()
+
+        for contest in contestManifest['List']:
+            contests[contest['Id']] = contest['Description']
+
+        numContests = len(contests)
+
+        logging.debug('Manifest for %d contests:\n%s" % (numContests, contests.items()))
+
+    headers = "TabulatorId,BatchId,RecordId,CountingGroupId,IsCurrent,BallotTypeId,PrecinctPortionId,"
+
+    # Produce a contestIndex to map contest Ids from json to sequential numbers starting at 0, as they should appear in the CSV
+    contestIndex = {}
+    i = 0
+    for id, name in contests.iteritems():
+        if "," in name:
+            print "Error: Found , in name"
+        headers += "%s," % name
+        contestIndex[id] = i
+        i += 1
+
     with zipf.open("CandidateManifest.json") as jsonFile:
-      rawJson = jsonFile.read()
-      logging.debug("CandidateManifest.json raw contents:\n%s" % rawJson)
+        rawJson = jsonFile.read()
+        logging.debug("CandidateManifest.json raw contents:\n%s" % rawJson)
 
-      candidateManifest = json.loads(rawJson)
+        candidateManifest = json.loads(rawJson)
 
-      unordered_candidates = {}
+        unordered_candidates = {}
 
-      for candidate in candidateManifest['List']:
-        unordered_candidates[candidate['Id']] = candidate['Description']
+        for candidate in candidateManifest['List']:
+            unordered_candidates[candidate['Id']] = candidate['Description']
 
-      logging.debug(sorted(unordered_candidates.items()))
+        logging.debug(sorted(unordered_candidates.items()))
 
     candidates = collections.OrderedDict(sorted(unordered_candidates.items()))
     numCandidates = len(candidates)
@@ -80,11 +107,11 @@ def parse():
     candidateIndex = {}
     i = 0
     for id, name in candidates.iteritems():
-      if "," in name:
-        print "Error: Found , in name"
-      headers += "%s," % name
-      candidateIndex[id] = i
-      i += 1
+        if "," in name:
+            print "Error: Found , in name"
+        headers += "%s," % name
+        candidateIndex[id] = i
+        i += 1
 
     headers = headers.strip(",")
 
@@ -114,83 +141,83 @@ def parse():
 
     # with open("CvrExport.json") as jsonFile:
     for zipinfo in zipf.infolist():
-     logging.info("seeing %s" % zipinfo.filename)
+        logging.info("seeing %s" % zipinfo.filename)
 
-     if "CvrExport" in zipinfo.filename:
-      rawJson = zipf.open(zipinfo.filename).read()
-      #rawJson = jsonFile.read()	# FIXME: better to use ijson here and not read it all in at once
-      cvrs = json.loads(rawJson)
+        if "CvrExport" in zipinfo.filename:
+            rawJson = zipf.open(zipinfo.filename).read()
+            #rawJson = jsonFile.read()        # FIXME: better to use ijson here and not read it all in at once
+            cvrs = json.loads(rawJson)
 
-      # Process each session as a ballot
-      for session in cvrs['Sessions']:
-        n += 1
+            # Process each session as a ballot
+            for session in cvrs['Sessions']:
+                n += 1
 
-        # print("Session keys: %s" % session.keys())
+                # print("Session keys: %s" % session.keys())
 
-        sessionInfo = "%s,%s,%s,%s" % (session['TabulatorId'], session['BatchId'], session['RecordId'], session['CountingGroupId'])
+                sessionInfo = "%s,%s,%s,%s" % (session['TabulatorId'], session['BatchId'], session['RecordId'], session['CountingGroupId'])
 
-        original = session['Original']
+                original = session['Original']
 
-        modified = session.get('Modified', None)
-        if modified:
-          if original['IsCurrent'] != False:
-            logging.error("Surprised to see IsCurrent != false given presence of Modified record. It has IsCurrent=%s\n%s" % (modified['IsCurrent'], original))
+                modified = session.get('Modified', None)
+                if modified:
+                    if original['IsCurrent'] != False:
+                        logging.error("Surprised to see IsCurrent != false given presence of Modified record. It has IsCurrent=%s\n%s" % (modified['IsCurrent'], original))
 
-          original = modified
+                    original = modified
 
-        # print original.keys()
+                # print original.keys()
 
-        ballotInfo = "%s,%s,%s" % (original['IsCurrent'], original['BallotTypeId'], original['PrecinctPortionId'])
+                ballotInfo = "%s,%s,%s" % (original['IsCurrent'], original['BallotTypeId'], original['PrecinctPortionId'])
 
-        voteArray = ["0"] * numCandidates
-        votes = ""
-        for contest in original['Contests']:
-          votes += "%s," % contest['Id']
+                voteArray = ["0"] * numCandidates
+                votes = ""
+                for contest in original['Contests']:
+                    votes += "%s," % contest['Id']
 
-          marks = contest['Marks']
-          if len(marks) > 1:
-            votemarks = [mark for mark in marks if mark['IsVote']]
-            if len(votemarks) > 1:
-              logging.error("FIXME: More than 1 IsVote mark: I can't handle this yet. Council race? %s" % marks) # '\n'.join(list(marks)))
-            marks = votemarks
+                    marks = contest['Marks']
+                    if len(marks) > 1:
+                        votemarks = [mark for mark in marks if mark['IsVote']]
+                        if len(votemarks) > 1:
+                            logging.error("FIXME: More than 1 IsVote mark: I can't handle this yet. Council race? %s" % marks) # '\n'.join(list(marks)))
+                        marks = votemarks
 
-          if len(marks) == 0:
-            votes += "-1,"
-          else:
-            mark = marks[0]
-            if mark['IsVote']:
-              voteArray[candidateIndex[mark['CandidateId']]] = "1"
-              votes += "%s," % mark['CandidateId']
-            else:
-              votes += "NOVOTE:%s," % (mark['CandidateId'])
-              logging.error("NOVOTE for %s" % mark)
+                    if len(marks) == 0:
+                        votes += "-1,"
+                    else:
+                        mark = marks[0]
+                        if mark['IsVote']:
+                            voteArray[candidateIndex[mark['CandidateId']]] = "1"
+                            votes += "%s," % mark['CandidateId']
+                        else:
+                            votes += "NOVOTE:%s," % (mark['CandidateId'])
+                            logging.error("NOVOTE for %s" % mark)
 
-          logging.debug("Density:%s,%s,%s,%s,%s" % (sessionInfo, mark['IsAmbiguous'], mark['MarkDensity'], mark['Rank'], mark.get('PartyId')))
+                    logging.debug("Density:%s,%s,%s,%s,%s" % (sessionInfo, mark['IsAmbiguous'], mark['MarkDensity'], mark['Rank'], mark.get('PartyId')))
 
-          # print("%s %d" % (contest.keys(), len(contest['Marks'])))
-          # votes += 
+                    # print("%s %d" % (contest.keys(), len(contest['Marks'])))
+                    # votes +=
 
-        row = ("%s,%s,%s" % (sessionInfo, ballotInfo, ','.join([v for v in voteArray])))
-        if row.count(",") + 1 != numColumns:
-          logging.error("FIXME: problem in row, %d columns, not %d. %s" % (row.count(",") + 1, numColumns, row) )
-        else:
-          print(row)
-          totals = [totals[i] + int(voteArray[i])  for i in xrange(numCandidates)]
+                row = ("%s,%s,%s" % (sessionInfo, ballotInfo, ','.join([v for v in voteArray])))
+                if row.count(",") + 1 != numColumns:
+                    logging.error("FIXME: problem in row, %d columns, not %d. %s" % (row.count(",") + 1, numColumns, row) )
+                else:
+                    print(row)
+                    totals = [totals[i] + int(voteArray[i])  for i in xrange(numCandidates)]
 
-          if n in selected:
-            sample_index += 1
-            batch = "%s_%s_%s" % (session['TabulatorId'], session['BatchId'], session['CountingGroupId'])
-            sample_lookup.write("%d,%d,%s,%d\n" % (sample_index, n, batch, session['RecordId']))
+                    if n in selected:
+                        sample_index += 1
+                        batch = "%s_%s_%s" % (session['TabulatorId'], session['BatchId'], session['CountingGroupId'])
+                        sample_lookup.write("%d,%d,%s,%d\n" % (sample_index, n, batch, session['RecordId']))
 
-        # row = ("%s,%s,%s" % (sessionInfo, ballotInfo, votes))
-        # remove trailing comma
-        # print(row.strip(','))
+                # row = ("%s,%s,%s" % (sessionInfo, ballotInfo, votes))
+                # remove trailing comma
+                # print(row.strip(','))
 
-        #if not original.get(["IsCurrent"]):
-        #  print "not current: %d: %s" % (n, original["IsCurrent"])
+                #if not original.get(["IsCurrent"]):
+                #  print "not current: %d: %s" % (n, original["IsCurrent"])
 
     if n != N:
-      logging.error("Ballot count mismatch: told %d, found %d" % (N, n))
+        logging.error("Ballot count mismatch: told %d, found %d" % (N, n))
 
     candidateRevIndex = {v: k for k, v in candidateIndex.iteritems()}
 
