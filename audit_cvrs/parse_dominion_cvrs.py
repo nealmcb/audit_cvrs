@@ -12,7 +12,7 @@ Usage:
 cd dominion-cvr-directory
 parse_dominion_cvrs.py zip-file > cvr.csv
 
-produces test.lookup file
+also produces test.lookup file, and summaries in debugging output
 
 Todo:
 
@@ -29,6 +29,8 @@ Parse ElectionId and use it to name CountyElection in electionAudits
 
 Perhaps convert TabulatorID and BatchID into BoxID to help preserve unlinkability.
 Perhaps sort output by something like BoxID, if that would help match results with Philip's auditTools?
+
+Optional entry of upper bound for number of phantom paper ballots, for evil zombie entries
 """
 
 import sys
@@ -69,19 +71,7 @@ def parse():
 
         numContests = len(contests)
 
-        logging.debug('Manifest for %d contests:\n%s" % (numContests, contests.items()))
-
-    headers = "TabulatorId,BatchId,RecordId,CountingGroupId,IsCurrent,BallotTypeId,PrecinctPortionId,"
-
-    # Produce a contestIndex to map contest Ids from json to sequential numbers starting at 0, as they should appear in the CSV
-    contestIndex = {}
-    i = 0
-    for id, name in contests.iteritems():
-        if "," in name:
-            print "Error: Found , in name"
-        headers += "%s," % name
-        contestIndex[id] = i
-        i += 1
+        logging.debug("Manifest for %d contests:\n%s" % (numContests, contests.items()))
 
     with zipf.open("CandidateManifest.json") as jsonFile:
         rawJson = jsonFile.read()
@@ -92,7 +82,7 @@ def parse():
         unordered_candidates = {}
 
         for candidate in candidateManifest['List']:
-            unordered_candidates[candidate['Id']] = candidate['Description']
+            unordered_candidates[candidate['Id']] = "%s\t%s" % (contests[candidate['ContestId']], candidate['Description'])
 
         logging.debug(sorted(unordered_candidates.items()))
 
@@ -136,6 +126,7 @@ def parse():
     n = 0
     sample_index = 0
     totals = [0] * numCandidates
+    contestBallots = collections.Counter()
 
     logging.debug("Density:TabulatorId,BatchId,RecordId,CountingGroupId,IsAmbiguous,MarkDensity,Rank,PartyId")
 
@@ -172,6 +163,7 @@ def parse():
                 voteArray = ["0"] * numCandidates
                 votes = ""
                 for contest in original['Contests']:
+                    contestBallots[contest['Id']] += 1
                     votes += "%s," % contest['Id']
 
                     marks = contest['Marks']
@@ -206,8 +198,9 @@ def parse():
 
                     if n in selected:
                         sample_index += 1
-                        batch = "%s_%s_%s" % (session['TabulatorId'], session['BatchId'], session['CountingGroupId'])
-                        sample_lookup.write("%d,%d,%s,%d\n" % (sample_index, n, batch, session['RecordId']))
+                        #batch = "%s_%s_%s" % (session['TabulatorId'], session['BatchId'], session['CountingGroupId'])
+                        batch = "%s" % (session['BatchId'])
+                        sample_lookup.write("%d,%d,%s,%d\n" % (sample_index, n, batch, session['RecordId'])) #FIXME: is RecordId the proper sequence number? or use sequence in file??
 
                 # row = ("%s,%s,%s" % (sessionInfo, ballotInfo, votes))
                 # remove trailing comma
@@ -223,6 +216,11 @@ def parse():
 
     for i in xrange(numCandidates):
         logging.warning("Total: %s" % str((totals[i], candidates[candidateRevIndex[i]])))
+
+    print contestBallots.most_common(10)
+
+    for contestId in sorted(contestBallots):
+        logging.warning("%d Ballots for contest %s" % (contestBallots[contestId], contests[contestId]))
 
 def main():
     parse()
