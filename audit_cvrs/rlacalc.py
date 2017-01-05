@@ -3,19 +3,30 @@
 rlacalc: Risk-Limiting Audit calculations
 ~~~~~~~~
 
-rlacalc computes expected sample size for a Risk-Limiting Audit (RLA),
- as described in
-  Super-Simple Simultaneous Single-Ballot Risk-Limiting Audits
-  https://www.usenix.org/legacy/events/evtwote10/tech/full_papers/Stark.pdf
+rlacalc computes the expected sample size for a Risk-Limiting Audit (RLA),
+ as described in A Gentle Introduction to Risk-limiting Audits
+   http://www.stat.berkeley.edu/~stark/Preprints/gentle12.pdf
+
+and the sample-size multiplier rho as described in
+  Super-Simple Simultaneous Single-Ballot Risk-Limiting Audits [s4rla]
+   https://www.usenix.org/legacy/events/evtwote10/tech/full_papers/Stark.pdf
 
 %InsertOptionParserUsage%
 
-Example: calculate initial sample size for RLA with 2% margin and default 10% risk limit:
+With the -n option, specify the actual number of discrepancies of various
+kinds via the --o1, o2, u1 and u2 options.
+Without -n, specify the fractional RATE of discrepancies, via
+the --or1, or2, ur1 and ur2 options.
+
+Example: calculate initial sample size for RLA with 2% margin,
+default 10% risk limit, and default error rates (0.1% chance of
+1-vote under or overstatement, rounded up, and 0.01% chance of
+2-vote under or overstatement, not rounded up):
+
  rlacalc.py -m 2
 
-Calculate sample size needed for RLA with 2% margin and default 10% risk limit and no errors:
- rlacalc.py -m 2 -n
-
+Calculate sample size needed for RLA with 5% margin, 20% risk limit and one 1-vote overstatement:
+ rlacalc.py -n -m 5 -r 20 --o1=1
 """
 
 import os
@@ -30,7 +41,9 @@ __date__ = "2016-12-04"
 __copyright__ = "Copyright (c) 2016 Neal McBurnett"
 __license__ = "MIT"
 
-parser = OptionParser(prog="rlacalc.py", version=__version__)
+parser = OptionParser(prog="rlacalc.py",
+                      usage=__doc__.replace("%InsertOptionParserUsage%\n", 'Usage: %prog [options]\n'),
+                      version=__version__)
 
 parser.add_option("-m", "--margin",
   type="float",
@@ -48,9 +61,18 @@ parser.add_option("-g", "--gamma",
   type="float", default=1.03905,
   help="gamma: error inflation factor, greater than 1.0")
 
+"""
+# For when we add an option to calculate rho:
 parser.add_option("-l", "--lambdatol",
   type="float", default=50.0,
   help="lambda: error tolerance for overstatements in percent, less than 100.0")
+
+and later...
+
+    if lambdatol >= 1.0:
+        raise ValueError("lambdatol is %f but must be < 1.0" % lambdatol)
+
+"""
 
 parser.add_option("--or1",
   type="float", default=0.001,
@@ -103,7 +125,18 @@ parser.add_option("--test",
 # incorporate OptionParser usage documentation in our docstring
 __doc__ = __doc__.replace("%InsertOptionParserUsage%\n", parser.format_help())
 
-def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0, lambdatol=0.5):
+def rho(alpha=0.1, gamma=1.03905, lambdatol=0.2):
+    """Calculate the sample-size multiplier rho, using the formula from page 4 of s4rla
+
+    >>> rho(alpha=0.1, gamma=1.03905, lambdatol=0.2)
+    6.5796033506092035
+    >>> rho(alpha=0.1, gamma=1.1, lambdatol=0.5)
+    15.200833727738756
+    """
+
+    return(-math.log(alpha) / ((1.0 / (2.0 * gamma)) + (lambdatol * math.log(1.0 - (1.0 / (2.0 * gamma))))))
+
+def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
     """Return needed sample size during a Risk-Limiting Audit
     alpha: maximum risk level (alpha), as a fraction
     gamma: error inflation factor, greater than 1.0
@@ -112,7 +145,6 @@ def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0, lambdato
     u1: 1-vote understatements
     o2: 2-vote overstatements
     u2: 2-vote understatements
-    lambdatol: error tolerance for overstatements as a fraction, less than 1.0  # FIXME - implement this
 
     FIXME: return ints?
 
@@ -132,39 +164,25 @@ def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0, lambdato
     >>> nmin(margin=0.05)
     96.0
 
-    FIXME: confirm these
+    FIXME: confirm those and this
     >>> nmin(margin=0.05, alpha=0.2)
     67.0
-
-    From p. 9 of https://www.usenix.org/legacy/events/evtwote10/tech/full_papers/Stark.pdf
-    
-    >>> nmin(margin=0.02, gamma=1.1, lambdatol=0.1) # FIXME - implement entry of lambda other than default of 50%
-    293.0
-
-    FIXME: Look at p.10, Table 4 - seem off by a factor of about 3
-    # >>> nmin(margin=0.05, alpha=0.1, gamma=1.1, lambdatol=0.5)  # produces 102, not 305 as in table
-    And what does this mean?
-     The values of the simultaneous risk bound P(n, n1, n2; U, gamma)
-     are generally on the order of 2/3 of the nominal values in the column headings.
     """
 
-    logging.debug("%s, %s, %s, %d, %d, %d, %d, %s" % (alpha, gamma, margin, o1, o2, u1, u2, lambdatol))
+    logging.debug("%s, %s, %s, %d, %d, %d, %d" % (alpha, gamma, margin, o1, o2, u1, u2))
 
     if gamma <= 1.0:
         raise ValueError("gamma is %f but must be > 1.0" % gamma)
 
-    if lambdatol >= 1.0:
-        raise ValueError("lambdatol is %f but must be < 1.0" % lambdatol)
-
     return max(
         o1 + o2 + u1 + u1,
-        math.ceil(-2 * gamma * ( math.log(alpha) +
-                                 o1 * math.log(1 - 1 / (2 * gamma)) +
-                                 o2 * math.log(1 - 1 / gamma) +
-                                 u1 * math.log(1 + 1 / (2 * gamma)) +
-                                 u2 * math.log(1 + 1 / gamma)) / margin ))
+        math.ceil(-2.0 * gamma * ( math.log(alpha) +
+                                 o1 * math.log(1.0 - 1.0 / (2.0 * gamma)) +
+                                 o2 * math.log(1.0 - 1.0 / gamma) +
+                                 u1 * math.log(1.0 + 1.0 / (2.0 * gamma)) +
+                                 u2 * math.log(1.0 + 1.0 / gamma)) / margin ))
 
-def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, ur1=0.001, ur2=0.0001, roundUp1=True, roundUp2=False, lambdatol=0.5):
+def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, ur1=0.001, ur2=0.0001, roundUp1=True, roundUp2=False):
     """Return expected sample size for a Risk-Limiting Audit
     alpha: maximum risk level (alpha), as a fraction
     gamma: error inflation factor, greater than 1.0
@@ -175,7 +193,6 @@ def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, 
     ur2: 2-vote understatement rate
     roundUp1: whether to round up 1-vote differences
     roundUp2: whether to round up 2-vote differences
-    lambdatol: error tolerance for overstatements as a fraction, less than 1.0
 
     Based on Javascript code in https://www.stat.berkeley.edu/~stark/Java/Html/auditTools.htm
     """
@@ -185,7 +202,7 @@ def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, 
                                  or2 * math.log(1 - 1/gamma) + ur1 * math.log(1 + 1/(2 * gamma)) + ur2 * math.log(1 + 1/gamma))
        ) )
 
-    for _ in xrange(3):
+    for _ in range(3):
         if (roundUp1):
              o1 = math.ceil(or1 * n0)
              u1 = math.ceil(ur1 * n0)
@@ -200,7 +217,7 @@ def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, 
              o2 = round(or2 * n0)
              u2 = round(ur2 * n0)
 
-        n0 = nmin(alpha, gamma, margin, o1, o2, u1, u2, lambdatol)
+        n0 = nmin(alpha, gamma, margin, o1, o2, u1, u2)
 
     return(n0)
 
@@ -234,12 +251,12 @@ def main(parser):
     checkRequiredArguments(opts, parser)
 
     if opts.nmin:
-        samplesize = nmin(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.o1, opts.o2, opts.u1, opts.u2, opts.lambdatol / 100.0)
-        print("Sample size = %d for margin %g%%, risk %g%%, gamma %g, o1 %g, o2 %g, u1 %g, u2 %g, lambda %g%%" % (samplesize, opts.margin, opts.alpha, opts.gamma, opts.o1, opts.o2, opts.u1, opts.u2, opts.lambdatol))
+        samplesize = nmin(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.o1, opts.o2, opts.u1, opts.u2)
+        print("Sample size = %d for margin %g%%, risk %g%%, gamma %g, o1 %g, o2 %g, u1 %g, u2 %g" % (samplesize, opts.margin, opts.alpha, opts.gamma, opts.o1, opts.o2, opts.u1, opts.u2))
     else:
-        samplesize = nminFromRates(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.or1, opts.or2, opts.ur1, opts.ur2, opts.roundUp1, opts.roundUp2, opts.lambdatol / 100.0)
+        samplesize = nminFromRates(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.or1, opts.or2, opts.ur1, opts.ur2, opts.roundUp1, opts.roundUp2)
 
-        print("Sample size = %d for margin %g%%, risk %g%%, gamma %g, or1 %g, or2 %g, ur1 %g, ur2 %g, roundUp1 %g, roundUp2 %g, lambda %g%%" % (samplesize, opts.margin, opts.alpha, opts.gamma, opts.or1, opts.or2, opts.ur1, opts.ur2, opts.roundUp1, opts.roundUp2, opts.lambdatol))
+        print("Sample size = %d for margin %g%%, risk %g%%, gamma %g, or1 %g, or2 %g, ur1 %g, ur2 %g, roundUp1 %g, roundUp2 %g" % (samplesize, opts.margin, opts.alpha, opts.gamma, opts.or1, opts.or2, opts.ur1, opts.ur2, opts.roundUp1, opts.roundUp2))
 
 if __name__ == "__main__":
     main(parser)
