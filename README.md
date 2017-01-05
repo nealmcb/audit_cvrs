@@ -38,15 +38,17 @@ The eventual goals of this software are:
 
 # Installation
 
-Tested on Ubuntu Trusty 14.04 with Django 1.6.1
+Tested on Ubuntu Trusty 14.04 with Django 1.9
 
 First install necessary packages:
 
-    apt-get install python-django-debug-toolbar python-django-extensions python-django-south python-django-reversion python-werkzeug
-
-In a virtualenv if desired, include this useful debugging tool:
-
-    pip install django-databrowse
+    mkvirtualenv django19
+    workon django19
+    pip install Django==1.9
+    pip install django-reversion
+    pip install django-extensions
+    pip install django-debug_toolbar
+    pip install Werkzeug
 
 # Preparation for real audit
 
@@ -55,11 +57,16 @@ Common steps:
 * Run the election
 * Obtain overall margin of victory for audit calculations
 
-The command `rlacalc.py -m 2` will calculate the expected sample size for a 2% margin.
+For example, the command `rlacalc.py -m 2` will calculate the expected sample size for a 2% margin.
 
 See `rlacalc.py -h` for additional options.
 
 * Publish Tally and Cast Vote Records
+
+## To audit Dominion election
+
+    audit_cvrs/parse_dominion_cvrs.py test/dominion-clear-creek-CVR_Export_20160713143950.zip  > /tmp/q1 2>/tmp/q2
+    mv test.lookup selections.lookup
 
 ## To audit Clear Ballot election
 
@@ -69,18 +76,17 @@ E.g. `./audit_cbg.py -p ../test/cbg/fl_bay_2012m -s 95562794305371208920 -n 16 >
 
 * The beginning of `/tmp/audit_cbg.out` has a csv file: a header and 16 rows in this case. Copy that part to a file `selections.lookup`
 
-## To audit Dominion election
-
-* Use `parse_dominion_cvrs.py` along with `audit_cbg.py` to produce selections.lookup file. The steps aren't currently all automated, and the format could use more work.
-
 # Initialization of database
 
-In the `audit_cvrs` directory:
+In the base `audit_cvrs` directory:
 
-    ./manage.py syncdb   # and create an admin user, with password and optional email
-    ./manage.py parse selections.lookup # You'll need to edit a hard-coded path in cvr.py first
+    ./manage.py migrate --run-syncdb
+    ./manage.py createsuperuser --username=demo --email=demo@example.com
 
-    ./manage.py migrate
+    # FIXME: add csv file option to parse command
+    # For now, edit a magic hard-coded path in cvr.py first to match csv file that came out of parsing above
+    ./manage.py parse selections.lookup
+
     ./manage.py createinitialrevisions
 
 To start over with cvr database: `./manage.py flush --noinput`

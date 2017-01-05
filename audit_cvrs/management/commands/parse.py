@@ -5,6 +5,7 @@ from optparse import make_option
 import audit_cvrs.parsers
 
 class Command(BaseCommand):
+    # FIXME before django 1.10: upgrade method of picking up options from audit_cvrs.parsers
     option_list = audit_cvrs.parsers.option_list + BaseCommand.option_list
     help = ("Parse and save audit_cvrs data")
     args = "[filename]"

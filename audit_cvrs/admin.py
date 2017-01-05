@@ -9,7 +9,7 @@ class CVRInline(admin.TabularInline):
 class CountyElectionAdmin(admin.ModelAdmin):
     inlines = [ CVRInline, ]
 
-class CVRAdmin(reversion.VersionAdmin):
+class CVRAdmin(reversion.admin.VersionAdmin):
     "Modify default layout of admin form"
     list_display = ('name', 'status', 'discrepancy')
 
