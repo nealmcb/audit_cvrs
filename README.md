@@ -44,11 +44,9 @@ First install necessary packages:
 
     mkvirtualenv django19
     workon django19
-    pip install Django==1.9
-    pip install django-reversion
-    pip install django-extensions
-    pip install django-debug_toolbar
-    pip install Werkzeug
+    pip install Django==1.9 django-reversion django-extensions django-debug_toolbar Werkzeug
+
+# Testing
 
 # Preparation for real audit
 

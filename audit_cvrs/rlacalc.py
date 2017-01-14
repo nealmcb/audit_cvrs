@@ -34,6 +34,20 @@ import sys
 import logging
 from optparse import OptionParser
 import math
+try:
+    import hug
+except:
+    import hug_noop as hug
+
+def annotate(annotations):
+    """
+    Add function annotations (PEP 3107) in a way that parses cleanly for python2.
+    """
+
+    def decorator(f):
+        f.__annotations__ = annotations
+        return f
+    return decorator
 
 __author__ = "Neal McBurnett <http://neal.mcburnett.org/>"
 __version__ = "0.1.0"
@@ -136,6 +150,10 @@ def rho(alpha=0.1, gamma=1.03905, lambdatol=0.2):
 
     return(-math.log(alpha) / ((1.0 / (2.0 * gamma)) + (lambdatol * math.log(1.0 - (1.0 / (2.0 * gamma))))))
 
+@hug.get(examples='alpha=0.1&gamma=1.03905&margin=0.05&o1=0&o2=0&u1=0&u2=0')
+@hug.local()
+@annotate(dict(alpha=hug.types.float_number, gamma=hug.types.float_number, margin=hug.types.float_number,
+               o1=hug.types.number, o2=hug.types.number, u1=hug.types.number, u2=hug.types.number))
 def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
     """Return needed sample size during a Risk-Limiting Audit
     alpha: maximum risk level (alpha), as a fraction
@@ -182,6 +200,12 @@ def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
                                  u1 * math.log(1.0 + 1.0 / (2.0 * gamma)) +
                                  u2 * math.log(1.0 + 1.0 / gamma)) / margin ))
 
+@hug.get(examples='alpha=0.1&gamma=1.03905&margin=0.05&or1=0.001&or2=0.0001&ur1=0.001&ur2=0.0001&roundUp1=1&rountUp2=')
+@hug.local()
+@annotate(dict(alpha=hug.types.float_number, gamma=hug.types.float_number, margin=hug.types.float_number,
+               or1=hug.types.float_number, or2=hug.types.float_number,
+               ur1=hug.types.float_number, ur2=hug.types.float_number,
+               roundUp1=hug.types.boolean, roundUp2=hug.types.boolean))
 def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, ur1=0.001, ur2=0.0001, roundUp1=True, roundUp2=False):
     """Return expected sample size for a Risk-Limiting Audit
     alpha: maximum risk level (alpha), as a fraction
