@@ -42,6 +42,7 @@ except:
 def annotate(annotations):
     """
     Add function annotations (PEP 3107) in a way that parses cleanly for python2.
+    cf. https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code
     """
 
     def decorator(f):
@@ -224,7 +225,7 @@ def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, 
     n0 = (-2 * gamma * math.log(alpha) /
           (margin + 2 * gamma * (or1 * math.log(1-1/(2 * gamma)) +
                                  or2 * math.log(1 - 1/gamma) + ur1 * math.log(1 + 1/(2 * gamma)) + ur2 * math.log(1 + 1/gamma))
-       ) )
+          ))
 
     for _ in range(3):
         if (roundUp1):
@@ -250,7 +251,7 @@ def checkRequiredArguments(opts, parser):
 
     missing_options = []
     for option in parser.option_list:
-        if option.help.startswith('[REQUIRED]') and eval('opts.' + option.dest) == None:
+        if option.help.startswith('[REQUIRED]') and eval('opts.' + option.dest) is None:
             missing_options.extend(option._long_opts)
 
     if len(missing_options) > 0:

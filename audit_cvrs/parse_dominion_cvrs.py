@@ -200,7 +200,7 @@ def parse():
                         sample_index += 1
                         #batch = "%s_%s_%s" % (session['TabulatorId'], session['BatchId'], session['CountingGroupId'])
                         batch = "%s" % (session['BatchId'])
-                        sample_lookup.write("%d,%d,%s,%d\n" % (sample_index, n, batch, session['RecordId'])) #FIXME: is RecordId the proper sequence number? or use sequence in file??
+                        sample_lookup.write("%d,%d,%s,%d\n" % (sample_index, n, batch, session['RecordId']))  # FIXME: is RecordId the proper sequence number? or use sequence in file??
 
                 # row = ("%s,%s,%s" % (sessionInfo, ballotInfo, votes))
                 # remove trailing comma
