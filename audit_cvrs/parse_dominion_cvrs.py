@@ -127,12 +127,13 @@ def parse():
     sample_index = 0
     totals = [0] * numCandidates
     contestBallots = collections.Counter()
+    contestBallotsByBatchManager = {}    # Counters for each contest giving number of ballots by batch
 
     logging.debug("Density:TabulatorId,BatchId,RecordId,CountingGroupId,IsAmbiguous,MarkDensity,Rank,PartyId")
 
     # with open("CvrExport.json") as jsonFile:
     for zipinfo in zipf.infolist():
-        logging.info("seeing %s" % zipinfo.filename)
+        logging.info("Encountering exported file %s" % zipinfo.filename)
 
         if "CvrExport" in zipinfo.filename:
             rawJson = zipf.open(zipinfo.filename).read()
@@ -164,6 +165,10 @@ def parse():
                 votes = ""
                 for contest in original['Contests']:
                     contestBallots[contest['Id']] += 1
+                    contestBallotsByBatch = contestBallotsByBatchManager.get(contest['Id'], collections.Counter())
+                    contestBallotsByBatch[session['BatchId']] += 1
+                    contestBallotsByBatchManager[contest['Id']] = contestBallotsByBatch
+
                     votes += "%s," % contest['Id']
 
                     marks = contest['Marks']
@@ -221,6 +226,19 @@ def parse():
 
     for contestId in sorted(contestBallots):
         logging.warning("%d Ballots for contest %s" % (contestBallots[contestId], contests[contestId]))
+
+    import pandas as pd
+    df = pd.DataFrame.from_dict(contestBallotsByBatchManager, orient='index').transpose()
+    # hmmm - how to add the contest name (Description) to the mix? df['Contest'] = apply(
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print df.describe().transpose()
+
+    print("Contest\tBatch\tBallots")
+    for contest in sorted(contestBallotsByBatchManager.keys()):
+        for batchId in contestBallotsByBatchManager[contest].keys():
+            print("%s\t%s\t%d" % (contest, batchId, contestBallotsByBatchManager[contest][batchId]))
+
+    print "Done"
 
 def main():
     parse()
