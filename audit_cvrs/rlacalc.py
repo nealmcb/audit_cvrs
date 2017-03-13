@@ -4,12 +4,19 @@ rlacalc: Risk-Limiting Audit calculations
 ~~~~~~~~
 
 rlacalc computes the expected sample size for a Risk-Limiting Audit (RLA),
- as described in A Gentle Introduction to Risk-limiting Audits
+as described in:
+
+  A Gentle Introduction to Risk-limiting Audits
    http://www.stat.berkeley.edu/~stark/Preprints/gentle12.pdf
 
-and the sample-size multiplier rho as described in
+  sample-size multiplier rho as described in
+
   Super-Simple Simultaneous Single-Ballot Risk-Limiting Audits [s4rla]
    https://www.usenix.org/legacy/events/evtwote10/tech/full_papers/Stark.pdf
+
+  BRAVO: Ballot-polling Risk-limiting Audits to Verify Outcomes
+   Mark Lindeman, Philip B. Stark, Vincent S. Yates
+   https://www.usenix.org/system/files/conference/evtwote12/evtwote12-final27.pdf
 
 %InsertOptionParserUsage%
 
@@ -27,6 +34,23 @@ default 10% risk limit, and default error rates (0.1% chance of
 
 Calculate sample size needed for RLA with 5% margin, 20% risk limit and one 1-vote overstatement:
  rlacalc.py -n -m 5 -r 20 --o1=1
+
+Deploy as a web API (local testing mode):
+
+ hug -f rlacalc.py
+
+ then visit  http://localhost:8000/  for help
+ or to e.g. calculate the sample size for a margin of 5%, for a 10% risk limit, visit
+   http://localhost:8000/nmin?alpha=0.1&margin=0.05
+
+Run unit tests:
+
+ rlacalc.py --test
+
+TODO:
+ Add calculations for DiffSum, ClipAudit etc.
+ Add pretty API documentation via pydoc3 and json2html
+   (https://github.com/timothycrosley/hug/issues/448#issuecomment-281878767)
 """
 
 import os
@@ -51,9 +75,9 @@ def annotate(annotations):
     return decorator
 
 __author__ = "Neal McBurnett <http://neal.mcburnett.org/>"
-__version__ = "0.1.0"
-__date__ = "2016-12-04"
-__copyright__ = "Copyright (c) 2016 Neal McBurnett"
+__version__ = "0.2.0"
+__date__ = "2017-02-23"
+__copyright__ = "Copyright (c) 2017 Neal McBurnett"
 __license__ = "MIT"
 
 parser = OptionParser(prog="rlacalc.py",
@@ -67,6 +91,10 @@ parser.add_option("-m", "--margin",
 parser.add_option("-n", "--nmin",
   action="store_true", default=False,
   help="Calculate nmin, not nminFromRates")
+
+parser.add_option("-p", "--polling",
+  action="store_true", default=False,
+  help="Ballot polling audit")
 
 parser.add_option("-r", "--alpha",
   type="float", default=10.0,
@@ -156,7 +184,8 @@ def rho(alpha=0.1, gamma=1.03905, lambdatol=0.2):
 @annotate(dict(alpha=hug.types.float_number, gamma=hug.types.float_number, margin=hug.types.float_number,
                o1=hug.types.number, o2=hug.types.number, u1=hug.types.number, u2=hug.types.number))
 def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
-    """Return needed sample size during a Risk-Limiting Audit
+    """Return needed sample size during a ballot-level comparison Risk-Limiting Audit
+
     alpha: maximum risk level (alpha), as a fraction
     gamma: error inflation factor, greater than 1.0
     margin: margin of victory, as a fraction
@@ -208,7 +237,7 @@ def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
                ur1=hug.types.float_number, ur2=hug.types.float_number,
                roundUp1=hug.types.boolean, roundUp2=hug.types.boolean))
 def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, ur1=0.001, ur2=0.0001, roundUp1=True, roundUp2=False):
-    """Return expected sample size for a Risk-Limiting Audit
+    """Return expected sample size for a ballot-level comparison Risk-Limiting Audit
     alpha: maximum risk level (alpha), as a fraction
     gamma: error inflation factor, greater than 1.0
     margin: margin of victory, as a fraction
@@ -246,6 +275,57 @@ def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, 
 
     return(n0)
 
+
+@hug.get(examples='alpha=0.1&margin=0.05')
+@hug.local()
+@annotate(dict(alpha=hug.types.float_number, margin=hug.types.float_number))
+def findAsn(alpha=0.1, margin=0.05):
+    """Return expected sample size for a ballot-polling Risk-Limiting Audit
+    alpha: maximum risk level (alpha), as a fraction
+    margin: margin of victory, as a fraction
+
+    TODO: enhance to allow for other than a perfect split
+    between 2 candidates, and various numbers of ballots.
+
+    Based on Javascript code in https://www.stat.berkeley.edu/~stark/Java/Html/ballotPollTools.htm
+
+    Tests, based on table 1 in BRAVO: Ballot-polling Risk-limiting Audits to Verify Outcomes
+      Mark Lindeman, Philip B. Stark, Vincent S. Yates
+      https://www.usenix.org/system/files/conference/evtwote12/evtwote12-final27.pdf
+
+    >>> findAsn(margin=0.01)
+    46151.0
+    >>> findAsn(margin=0.04)
+    2902.0
+    >>> findAsn(margin=0.2)
+    119.0
+
+    v_c: reported votes for the candidate
+    p_c: reported proportion of ballots with votes for candidate
+    s_c: the fraction of valid votes cast for candidate  (ignoring undervotes etc)
+    """
+
+    ballots = 100000
+    vw = ballots * (0.5 + margin / 2.)
+    vl = ballots * (0.5 - margin / 2.)
+
+    if (vw > vl):
+        sw = vw / (vw + vl)
+        zw = math.log(2.0 * sw)
+        zl = math.log(2.0 * (1 - sw))
+        pw = vw / ballots
+        pl = vl / ballots
+
+        logging.debug("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (alpha, margin, ballots, vw, vl, sw, zw, zl, pw, pl))
+
+        asn = math.ceil((math.log(1.0 / alpha) + zw / 2.0) / (((vw + vl) / ballots) * (pw * zw + pl * zl)))
+
+    else:
+        asn = float('nan')
+
+    return asn
+
+
 def checkRequiredArguments(opts, parser):
     "Make sure that any options described as '[REQUIRED]' are present"
 
@@ -275,7 +355,11 @@ def main(parser):
 
     checkRequiredArguments(opts, parser)
 
-    if opts.nmin:
+    if opts.polling:
+        samplesize = findAsn(opts.alpha / 100.0, opts.margin / 100.0)
+        print("Sample size = %d for ballot polling, margin %g%%, risk %g%%" % (samplesize, opts.margin, opts.alpha))
+
+    elif opts.nmin:
         samplesize = nmin(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.o1, opts.o2, opts.u1, opts.u2)
         print("Sample size = %d for margin %g%%, risk %g%%, gamma %g, o1 %g, o2 %g, u1 %g, u2 %g" % (samplesize, opts.margin, opts.alpha, opts.gamma, opts.o1, opts.o2, opts.u1, opts.u2))
     else:
