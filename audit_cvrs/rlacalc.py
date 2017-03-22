@@ -48,6 +48,7 @@ Run unit tests:
  rlacalc.py --test
 
 TODO:
+ Model variance for ballot-polling audits, add estimates for quantiles.
  Add calculations for DiffSum, ClipAudit etc.
  Add pretty API documentation via pydoc3 and json2html
    (https://github.com/timothycrosley/hug/issues/448#issuecomment-281878767)
@@ -286,6 +287,10 @@ def findAsn(alpha=0.1, margin=0.05):
 
     TODO: enhance to allow for other than a perfect split
     between 2 candidates, and various numbers of ballots.
+
+    Model variance for ballot-polling audits, add estimates for quantiles.
+     Quantile           25th        50th    75th    90th    99th
+     fraction of mean   0.41        0.71    1.25    2.09    4.64
 
     Based on Javascript code in https://www.stat.berkeley.edu/~stark/Java/Html/ballotPollTools.htm
 
