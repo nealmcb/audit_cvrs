@@ -1,0 +1,8 @@
+{
+    "dev": {
+        "app_function": "rlacalc.__hug_wsgi__",
+        "aws_region": "us-east-1",
+        "profile_name": "zappa",
+        "s3_bucket": "zappa-rlacalc"
+    }
+}
