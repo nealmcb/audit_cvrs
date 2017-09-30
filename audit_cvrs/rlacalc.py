@@ -54,11 +54,16 @@ TODO:
    (https://github.com/timothycrosley/hug/issues/448#issuecomment-281878767)
 """
 
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+
 import os
 import sys
 import logging
 from optparse import OptionParser
-import math
+from math import log, ceil, isnan
+# from numpy import log, ceil
+
 try:
     import hug
 except:
@@ -86,12 +91,24 @@ parser = OptionParser(prog="rlacalc.py",
                       version=__version__)
 
 parser.add_option("-m", "--margin",
-  type="float",
-  help="[REQUIRED] margin of victory, in percent")
+  type="float", default=5.0,
+  help="margin of victory, in percent")
 
 parser.add_option("-n", "--nmin",
   action="store_true", default=False,
-  help="Calculate nmin, not nminFromRates")
+  help="Calculate nmin from observed discrepancies, not rates")
+
+parser.add_option("-R", "--rawrates",
+  action="store_true", default=False,
+  help="Calculate KM_Expected_sample_size value, with no rounding")
+
+parser.add_option("-o", "--nminFromRates",
+  action="store_true", default=False,
+  help="Calculate obsolete nminFromRates value")
+
+parser.add_option("-l", "--level",
+  action="store_true", default=False,
+  help="Calculate risk level, the p-value")
 
 parser.add_option("-p", "--polling",
   action="store_true", default=False,
@@ -105,9 +122,17 @@ parser.add_option("-g", "--gamma",
   type="float", default=1.03905,
   help="gamma: error inflation factor, greater than 1.0")
 
+parser.add_option("-s", "--samplesize",
+  type="int", default=95,
+  help="Sample size, for --level option")
+
+parser.add_option("-b", "--binom",
+  action="store_true", default=False,
+  help="Calculate binomial confidence interval")
+
 """
 # For when we add an option to calculate rho:
-parser.add_option("-l", "--lambdatol",
+parser.add_option("--lambdatol",
   type="float", default=50.0,
   help="lambda: error tolerance for overstatements in percent, less than 100.0")
 
@@ -166,8 +191,19 @@ parser.add_option("--test",
   action="store_true", default=False,
   help="Run tests")
 
+parser.add_option("-v", "--verbose",
+  action="store_true", default=False,
+  help="Verbose doctests")
+
 # incorporate OptionParser usage documentation in our docstring
 __doc__ = __doc__.replace("%InsertOptionParserUsage%\n", parser.format_help())
+
+
+class RLAError(Exception):
+    "Basic exception for errors raised by rlacalc"
+
+class RLAValueError(RLAError, ValueError):
+    "rlacalc ValueErrors"
 
 def rho(alpha=0.1, gamma=1.03905, lambdatol=0.2):
     """Calculate the sample-size multiplier rho, using the formula from page 4 of s4rla
@@ -178,14 +214,29 @@ def rho(alpha=0.1, gamma=1.03905, lambdatol=0.2):
     15.200833727738756
     """
 
-    return(-math.log(alpha) / ((1.0 / (2.0 * gamma)) + (lambdatol * math.log(1.0 - (1.0 / (2.0 * gamma))))))
+    return(-log(alpha) / ((1.0 / (2.0 * gamma)) + (lambdatol * log(1.0 - (1.0 / (2.0 * gamma))))))
+
+
+def checkArgs(alpha, gamma, margin):
+    "Raise an exception if any of the given arguments is invalid"
+
+    if not (0.0 < alpha <= 1.0):
+        raise RLAValueError("alpha is %f but must be 0.0 < alpha <= 1.0" % alpha)
+
+    if gamma <= 1.0:
+        raise RLAValueError("gamma is %f but must be > 1.0" % gamma)
+
+    if not (0.0 < margin <= 1.0):
+        raise RLAValueError("margin is %f but must be 0.0 < margin <= 1.0" % margin)
+
 
 @hug.get(examples='alpha=0.1&gamma=1.03905&margin=0.05&o1=0&o2=0&u1=0&u2=0')
 @hug.local()
 @annotate(dict(alpha=hug.types.float_number, gamma=hug.types.float_number, margin=hug.types.float_number,
                o1=hug.types.number, o2=hug.types.number, u1=hug.types.number, u2=hug.types.number))
 def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
-    """Return needed sample size during a ballot-level comparison Risk-Limiting Audit
+    """Return needed sample size during a ballot-level comparison Risk-Limiting Audit.
+    Raises RLAValueError if any arguments are obviously invalid.
 
     alpha: maximum risk level (alpha), as a fraction
     gamma: error inflation factor, greater than 1.0
@@ -194,8 +245,6 @@ def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
     u1: 1-vote understatements
     o2: 2-vote overstatements
     u2: 2-vote understatements
-
-    FIXME: return ints?
 
     Based on Javascript code in https://www.stat.berkeley.edu/~stark/Java/Html/auditTools.htm
 
@@ -218,18 +267,191 @@ def nmin(alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
     67.0
     """
 
-    logging.debug("%s, %s, %s, %d, %d, %d, %d" % (alpha, gamma, margin, o1, o2, u1, u2))
+    logging.debug("%s, %s, %s, %f, %f, %f, %f" % (alpha, gamma, margin, o1, o2, u1, u2))
 
-    if gamma <= 1.0:
-        raise ValueError("gamma is %f but must be > 1.0" % gamma)
+    checkArgs(alpha, gamma, margin)
+
+    if o1 < 0  or  o2 < 0  or u1 < 0  or u2 < 0:
+        raise RLAValueError("nmin: Discrepancy counts %d %d %d %d must all be >= 0" % (o1, o2, u1, u2))
 
     return max(
         o1 + o2 + u1 + u1,
-        math.ceil(-2.0 * gamma * ( math.log(alpha) +
-                                 o1 * math.log(1.0 - 1.0 / (2.0 * gamma)) +
-                                 o2 * math.log(1.0 - 1.0 / gamma) +
-                                 u1 * math.log(1.0 + 1.0 / (2.0 * gamma)) +
-                                 u2 * math.log(1.0 + 1.0 / gamma)) / margin ))
+        ceil(-2.0 * gamma * ( log(alpha) +
+                                 o1 * log(1.0 - 1.0 / (2.0 * gamma)) +
+                                 o2 * log(1.0 - 1.0 / gamma) +
+                                 u1 * log(1.0 + 1.0 / (2.0 * gamma)) +
+                                 u2 * log(1.0 + 1.0 / gamma)) / margin ))
+
+
+@hug.get(examples='alpha=0.1&gamma=1.03905&margin=0.05&or1=0.001&or2=0.0001&ur1=0.001&ur2=0.0001&roundUp1=1&rountUp2=')
+@hug.local()
+@annotate(dict(alpha=hug.types.float_number, gamma=hug.types.float_number, margin=hug.types.float_number,
+               or1=hug.types.float_number, or2=hug.types.float_number,
+               ur1=hug.types.float_number, ur2=hug.types.float_number,
+               roundUp1=hug.types.boolean, roundUp2=hug.types.boolean))
+def KM_Expected_sample_size(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, ur1=0.001, ur2=0.0001):
+    """
+    Note this is an estimate, not an exact calculation. In an audit, the final determination of whether
+    the risk limit has been reached should be checked via nmin().
+
+    Raises RLAValueError if any arguments are obviously invalid.
+    Returns nan if the sample size 
+
+    Without error checking, note invalid result with invalid input (negative rates)
+    rlacalc -m 5 -r 5 --roundUp1 0  --or2 -2 --ur2 -3
+    KM_exp_smps = 1 for margin 5%, risk 5%, gamma 1.03905, or1 0.001, or2 -2, ur1 0.001, ur2 -3
+
+    From https://github.com/pbstark/S157F17/blob/master/audit.ipynb
+
+    Note, can be less than nmin, e.g.:
+    rlacalc -m 5 -r 5 --roundUp1 0 --ur1 0 --or1 0  --or2 0 --ur2 0 -R
+    KM_exp_smps = 124 for margin 5%, risk 5%, gamma 1.03905, or1 0, or2 0, ur1 0, ur2 0
+    rlacalc -m 5 -r 5 --roundUp1 0 --u1 0 --o1 0  --o2 0 --u2 0 -n
+    Sample size = 125 for margin 5%, risk 5%, gamma 1.03905, o1 0, o2 0, u1 0, u2 0
+
+    >>> alpha = 0.05
+    >>> gamma = 1.03905
+    >>> margin = (354040 - 337589)/(354040+337589+33234) # New Hampshire 2016
+    >>> KM_Expected_sample_size(alpha, gamma, 0.05, 0.001, 0, 0.001, 0)
+    125.0
+    >>> KM_Expected_sample_size(alpha, gamma, margin, .001, 0., 0., 0.)
+    291.0
+    >>> KM_Expected_sample_size(alpha, gamma, 0.05, 0., 0., 0., 0.05)
+    52.0
+    >>> KM_Expected_sample_size(alpha, gamma, 0.05, .05, 0., 0., 0.)
+    nan
+    """
+
+    checkArgs(alpha, gamma, margin)
+
+    if or1 < 0.0  or  or2 < 0.0  or ur1 < 0.0  or ur2 < 0.0:
+        raise RLAValueError("Discrepancy rates %f %f %f %f must all be >= 0.0" % (or1, or2, ur1, ur2))
+
+    n = float('nan')
+    denom = log( 1 - margin / (2 * gamma) ) -\
+            or1 * log(1 - 1 /(2 * gamma)) -\
+            or2 * log(1 - 1 / gamma) -\
+            ur1 * log(1 + 1 /(2 * gamma)) -\
+            ur2 * log(1 + 1 / gamma)
+    if (denom < 0):
+        n = ceil(log(alpha)/denom)
+
+    return(n)
+
+
+@hug.get(examples='alpha=0.1&gamma=1.03905&margin=0.05&or1=0.001&or2=0.0001&ur1=0.001&ur2=0.0001&roundUp1=1&rountUp2=')
+@hug.local()
+@annotate(dict(alpha=hug.types.float_number, gamma=hug.types.float_number, margin=hug.types.float_number,
+               or1=hug.types.float_number, or2=hug.types.float_number,
+               ur1=hug.types.float_number, ur2=hug.types.float_number,
+               roundUp1=hug.types.boolean, roundUp2=hug.types.boolean))
+def KM_Expected_sample_size_rounded(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, ur1=0.001, ur2=0.0001, roundUp1=True, roundUp2=False):
+    """Return expected sample size for a ballot-level comparison Risk-Limiting Audit
+    Raises RLAValueError if any arguments are obviously invalid.
+    Returns nan if it seems the sample size is unbounded.
+
+    alpha: maximum risk level (alpha), as a fraction
+    gamma: error inflation factor, greater than 1.0
+    margin: margin of victory, as a fraction
+    or1: 1-vote overstatement rate
+    ur1: 1-vote understatement rate
+    or2: 2-vote overstatement rate
+    ur2: 2-vote understatement rate
+    roundUp1: whether to round up 1-vote differences
+    roundUp2: whether to round up 2-vote differences
+
+    Combines KM_Expected_sample_size from https://github.com/pbstark/S157F17/blob/master/audit.ipynb
+    with nminFromRates based on https://www.stat.berkeley.edu/~stark/Java/Html/auditTools.htm
+
+    >>> alpha = 0.05
+    >>> gamma = 1.03905
+    >>> margin = (354040 - 337589)/(354040+337589+33234) # New Hampshire 2016
+
+    >>> KM_Expected_sample_size_rounded(alpha, gamma, 0.05, 0.001, 0, 0.001, 0, roundUp1=False)
+    125.0
+    >>> KM_Expected_sample_size_rounded(alpha, gamma, 0.05, 0.001, 0, 0.001, 0)
+    136.0
+    >>> KM_Expected_sample_size_rounded(alpha, gamma, margin, .001, 0., 0., 0.)
+    335.0
+    >>> KM_Expected_sample_size(alpha, gamma, 0.05, 0., 0., 0., 0.05)
+    52.0
+    >>> KM_Expected_sample_size_rounded(alpha, gamma, 0.05, .05, 0., 0., 0.)
+    nan
+    >>> KM_Expected_sample_size_rounded(alpha, gamma, 0.05, 0., 0., 0., 0.05)
+    nan
+    >>> KM_Expected_sample_size_rounded(alpha, gamma, 0.05, 1., 1., 1., 1)
+    nan
+    """
+
+    n0 = KM_Expected_sample_size(alpha, gamma, margin, or1, or2, ur1, ur2)
+    lastn0 = n0
+
+    logging.info("n0 = %f" % n0)
+
+    # Run a few times thru a loop to quickly try to converge on a stable estimated
+    # sample size, and corresponding discrepancy counts based on the rounding rules.
+    # I.e. generate the number of discrepencies of each type based on the rate, the
+    # candidate sample size n0, and the relevant roundUp setting.
+    # Recompute nmin each time.
+    rounds = 10
+    for i in range(rounds):
+        if (roundUp1):
+             o1 = ceil(or1 * n0)
+             u1 = ceil(ur1 * n0)
+        else:
+             o1 = round(or1 * n0)
+             u1 = round(ur1 * n0)
+
+        if (roundUp2):
+             o2 = ceil(or2 * n0)
+             u2 = ceil(ur2 * n0)
+        else:
+             o2 = round(or2 * n0)
+             u2 = round(ur2 * n0)
+
+        n0 = nmin(alpha, gamma, margin, o1, o2, u1, u2)
+        logging.info("n0 = %f in round %d" % (n0, i))
+
+        if n0 == lastn0  or  isnan(n0):
+            logging.info("Break at round %d" % (i))
+            break
+        else:
+            lastn0 = n0
+
+    if i == rounds - 1:
+        logging.info("Went to round %d: %s" % (i, (alpha, gamma, margin, or1, or2, ur1, ur2, roundUp1, roundUp2)))
+        n0 = float('nan')
+
+    return(n0)
+
+
+@hug.get(examples='alpha=0.1&gamma=1.03905&margin=0.05&or1=0.001&or2=0.0001&ur1=0.001&ur2=0.0001&roundUp1=1&rountUp2=')
+@hug.local()
+@annotate(dict(alpha=hug.types.float_number, gamma=hug.types.float_number, margin=hug.types.float_number,
+               or1=hug.types.float_number, or2=hug.types.float_number,
+               ur1=hug.types.float_number, ur2=hug.types.float_number,
+               roundUp1=hug.types.boolean, roundUp2=hug.types.boolean))
+def nminEst(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, ur1=0.001, ur2=0.0001, roundUp1=True, roundUp2=False):
+    """Return expected sample size for a ballot-level comparison Risk-Limiting Audit
+    alpha: maximum risk level (alpha), as a fraction
+    gamma: error inflation factor, greater than 1.0
+    margin: margin of victory, as a fraction
+    or1: 1-vote overstatement rate
+    ur1: 1-vote understatement rate
+    or2: 2-vote overstatement rate
+    ur2: 2-vote understatement rate
+    roundUp1: whether to round up 1-vote differences
+    roundUp2: whether to round up 2-vote differences
+
+    Incomplete, based on Stephanie Singer's proposal at https://github.com/FreeAndFair/ColoradoRLA/issues/695
+    """
+
+    A = -2 * gamma * log(alpha) / margin
+    B = (-2 * gamma / margin ) * ( log(1 - 1 / (2 * gamma )) )
+    C = (-2 * gamma / margin ) * ( log(1 - 1 / gamma) )
+    D = (-2 * gamma / margin ) * ( log(1 + 1 / (2 * gamma )) )
+    E = (-2 * gamma / margin ) * ( log(1 + 1 / gamma) )
+
 
 @hug.get(examples='alpha=0.1&gamma=1.03905&margin=0.05&or1=0.001&or2=0.0001&ur1=0.001&ur2=0.0001&roundUp1=1&rountUp2=')
 @hug.local()
@@ -250,31 +472,76 @@ def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, 
     roundUp2: whether to round up 2-vote differences
 
     Based on Javascript code in https://www.stat.berkeley.edu/~stark/Java/Html/auditTools.htm
+
+    >>> alpha = 0.05
+    >>> gamma = 1.03905
+    >>> margin = (354040 - 337589)/(354040+337589+33234) # New Hampshire 2016
+    >>> nminFromRates(alpha, gamma, margin, .001, 0, 0, 0, 0.05)
+    335.0
+    >>> nminFromRates(alpha, gamma, 0.05, 0.001, 0, 0.001, 0)
+    136.0
+    >>> nminFromRates(alpha, gamma, margin, .05, 0, 0, 0, 0.05)
+    Traceback (most recent call last):
+    RLAValueError: nmin: Discrepancy counts -6 0 0 0 must all be >= 0
+
+    Without nmin error checking, the last one returns
+    2781959.0 after calculating n0 = -136.8445412898146
     """
 
-    n0 = (-2 * gamma * math.log(alpha) /
-          (margin + 2 * gamma * (or1 * math.log(1-1/(2 * gamma)) +
-                                 or2 * math.log(1 - 1/gamma) + ur1 * math.log(1 + 1/(2 * gamma)) + ur2 * math.log(1 + 1/gamma))
-          ))
+    checkArgs(alpha, gamma, margin)
 
-    for _ in range(3):
+    n0 = (-2 * gamma * log(alpha) /
+          (margin + 2 * gamma * (or1 * log(1-1/(2 * gamma)) +
+                                 or2 * log(1 - 1/gamma) +
+                                 ur1 * log(1 + 1/(2 * gamma)) +
+                                 ur2 * log(1 + 1/gamma)) ))
+
+    logging.info("n0 = %f" % n0)
+
+    # Run a few times thru a loop to quickly try to converge on a stable estimated
+    # sample size, and corresponding discrepancy counts based on the rounding rules.
+    # I.e. generate the number of discrepencies of each type based on the rate, the
+    # candidate sample size n0, and the relevant roundUp setting.
+    # Recompute nmin each time.
+    rounds = 10
+    for i in range(rounds):
         if (roundUp1):
-             o1 = math.ceil(or1 * n0)
-             u1 = math.ceil(ur1 * n0)
+             o1 = ceil(or1 * n0)
+             u1 = ceil(ur1 * n0)
         else:
              o1 = round(or1 * n0)
              u1 = round(ur1 * n0)
 
         if (roundUp2):
-             o2 = math.ceil(or2 * n0)
-             u2 = math.ceil(ur2 * n0)
+             o2 = ceil(or2 * n0)
+             u2 = ceil(ur2 * n0)
         else:
              o2 = round(or2 * n0)
              u2 = round(ur2 * n0)
 
         n0 = nmin(alpha, gamma, margin, o1, o2, u1, u2)
 
+        logging.info("n0 = %f in round %d" % (n0, i))
+
     return(n0)
+
+
+def KM_P_value(n=96, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
+    """Return P-values (risk level achieved?) for given sample size n and discrepancy counts.
+    n: sample size
+    margin: diluted margin; 
+    From https://github.com/pbstark/S157F17/blob/master/audit.ipynb
+
+    >>> margin = (354040 - 337589)/(354040+337589+33234) # New Hampshire 2016
+    >>> KM_P_value(200, 1.03905, margin, 1, 0, 0, 0)
+    0.21438135077031842
+    """
+
+    return((1 - margin/(2*gamma))**n *\
+           (1 - 1/(2*gamma))**(-o1) *\
+           (1 - 1/gamma)**(-o2) *\
+           (1 + 1/(2*gamma))**(-u1) *\
+           (1 + 1/gamma)**(-u2))
 
 
 @hug.get(examples='alpha=0.1&margin=0.05')
@@ -316,14 +583,14 @@ def findAsn(alpha=0.1, margin=0.05):
 
     if (vw > vl):
         sw = vw / (vw + vl)
-        zw = math.log(2.0 * sw)
-        zl = math.log(2.0 * (1 - sw))
+        zw = log(2.0 * sw)
+        zl = log(2.0 * (1 - sw))
         pw = vw / ballots
         pl = vl / ballots
 
         logging.debug("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (alpha, margin, ballots, vw, vl, sw, zw, zl, pw, pl))
 
-        asn = math.ceil((math.log(1.0 / alpha) + zw / 2.0) / (((vw + vl) / ballots) * (pw * zw + pl * zl)))
+        asn = ceil((log(1.0 / alpha) + zw / 2.0) / (((vw + vl) / ballots) * (pw * zw + pl * zl)))
 
     else:
         asn = float('nan')
@@ -331,20 +598,96 @@ def findAsn(alpha=0.1, margin=0.05):
     return asn
 
 
-def checkRequiredArguments(opts, parser):
-    "Make sure that any options described as '[REQUIRED]' are present"
+'''
+FIXME - replace the hard-coded call with a command-line option, and integrate into KM_Expected_sample_size
 
-    missing_options = []
-    for option in parser.option_list:
-        if option.help.startswith('[REQUIRED]') and eval('opts.' + option.dest) is None:
-            missing_options.extend(option._long_opts)
+Situation:
 
-    if len(missing_options) > 0:
-        parser.error('Missing REQUIRED parameters: ' + str(missing_options))
+ Observe 50 county audits.
+ For EACH of 4 kinds of errors, observe occurrence rate:
 
-def _test():
+ 0 in 30
+ 1 in 75
+ 0 in 40
+ 1 in 100
+ 0 in 150
+ 2 in 24
+
+=> 4 in sum(...) "successes"
+
+Wanted: 90th confidence interval on each of the 4 error rates
+Implemented in Java
+
+Then plug that rate in to KM_Expected_sample_size
+ allow both nmin opts (for observed discrepancies) and future rate opts or calculations?
+ how to decide when to use default rate and when to calculate one?
+
+binomial distribution with parameters n and p is the discrete probability distribution of the number of successes in a sequence of n independent experiments, each asking a yes-no question, and each with its own boolean-valued outcome
+
+For sampling without replacement, the appropriate confidence interval is hypergeometric.
+'''
+
+def binom_conf_interval(n, x, cl=0.975, alternative="two-sided", p=None, **kwargs):
+    """
+    Compute a confidence interval for a binomial p, the probability of success in each trial.
+
+    Parameters
+    ----------
+    n : int
+        The number of Bernoulli trials.
+    x : int
+        The number of successes.
+    cl : float in (0, 1)
+        The desired confidence level.
+    alternative : {"two-sided", "lower", "upper"}
+        Indicates the alternative hypothesis.
+    p : float in (0, 1)
+        Starting point in search for confidence bounds for probability of success in each trial.
+    kwargs : dict
+        Key word arguments
+
+    Returns
+    -------
+    tuple
+        lower and upper confidence level with coverage (approximately)
+        1-alpha.
+
+    Notes
+    -----
+    xtol : float
+        Tolerance
+    rtol : float
+        Tolerance
+    maxiter : int
+        Maximum number of iterations.
+    """
+    from scipy.optimize import brentq
+    from scipy.stats import binom, hypergeom
+
+    assert alternative in ("two-sided", "lower", "upper")
+
+    if p is None:
+        p = x / n
+    ci_low = 0.0
+    ci_upp = 1.0
+
+    if alternative == 'two-sided':
+        cl = 1 - (1 - cl) / 2
+
+    if alternative != "upper" and x > 0:
+        f = lambda q: cl - binom.cdf(x - 1, n, q)
+        ci_low = brentq(f, 0.0, p, *kwargs)
+    if alternative != "lower" and x < n:
+        f = lambda q: binom.cdf(x, n, q) - (1 - cl)
+        ci_upp = brentq(f, 1.0, p, *kwargs)
+
+    return ci_low, ci_upp
+
+
+def _test(opts):
     import doctest
-    return doctest.testmod()
+    return doctest.testmod(verbose=opts.verbose)
+
 
 def main(parser):
     "Run rlacalc with given OptionParser arguments"
@@ -355,10 +698,8 @@ def main(parser):
     logging.basicConfig(level=opts.debuglevel)   # ..., format='%(message)s', filename= "/file/to/log/to", filemode='w' )
 
     if opts.test:
-        _test()
+        _test(opts)
         sys.exit(0)
-
-    checkRequiredArguments(opts, parser)
 
     if opts.polling:
         samplesize = findAsn(opts.alpha / 100.0, opts.margin / 100.0)
@@ -366,11 +707,40 @@ def main(parser):
 
     elif opts.nmin:
         samplesize = nmin(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.o1, opts.o2, opts.u1, opts.u2)
-        print("Sample size = %d for margin %g%%, risk %g%%, gamma %g, o1 %g, o2 %g, u1 %g, u2 %g" % (samplesize, opts.margin, opts.alpha, opts.gamma, opts.o1, opts.o2, opts.u1, opts.u2))
-    else:
+        print("Sample size = %d for margin %g%%, risk %g%%, gamma %g, o1 %g, o2 %g, u1 %g, u2 %g" %
+              (samplesize, opts.margin, opts.alpha, opts.gamma, opts.o1, opts.o2, opts.u1, opts.u2))
+
+    elif opts.level:
+        samplesize = opts.samplesize
+        risk_level = KM_P_value(samplesize, opts.gamma, opts.margin / 100.0, opts.o1, opts.o2, opts.u1, opts.u2)
+
+        print("KM_P_value  = %.4f for margin %g%%, samplesize %.0f, gamma %g, o1 %g, o2 %g, u1 %g, ur %g" %
+              (risk_level, opts.margin, samplesize, opts.gamma, opts.o1, opts.o2, opts.u1, opts.u2))
+
+    elif opts.nminFromRates:
         samplesize = nminFromRates(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.or1, opts.or2, opts.ur1, opts.ur2, opts.roundUp1, opts.roundUp2)
 
-        print("Sample size = %d for margin %g%%, risk %g%%, gamma %g, or1 %g, or2 %g, ur1 %g, ur2 %g, roundUp1 %g, roundUp2 %g" % (samplesize, opts.margin, opts.alpha, opts.gamma, opts.or1, opts.or2, opts.ur1, opts.ur2, opts.roundUp1, opts.roundUp2))
+        print("Old sample size = %d for margin %g%%, risk %g%%, gamma %g, or1 %g, or2 %g, ur1 %g, ur2 %g, roundUp1 %g, roundUp2 %g" %
+              (samplesize, opts.margin, opts.alpha, opts.gamma, opts.or1, opts.or2, opts.ur1, opts.ur2, opts.roundUp1, opts.roundUp2))
+
+    elif opts.binom:
+        n=5000
+        x=20
+        ci=.90
+        sides="upper"
+        print("binom_conf_interval(%d, %d, %.3f, %s): %s" % (n, x, ci, sides, binom_conf_interval(n, x, ci, sides),))
+
+    elif opts.rawrates:
+        samplesize = KM_Expected_sample_size(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.or1, opts.or2, opts.ur1, opts.ur2)
+
+        print("KM_exp_smps = %.0f for margin %g%%, risk %g%%, gamma %g, or1 %g, or2 %g, ur1 %g, ur2 %g" % (samplesize, opts.margin, opts.alpha, opts.gamma, opts.or1, opts.or2, opts.ur1, opts.ur2))
+
+    else:
+        samplesize = KM_Expected_sample_size_rounded(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.or1, opts.or2, opts.ur1, opts.ur2, opts.roundUp1, opts.roundUp2)
+
+        print("KM_exp_rnd  = %.0f for margin %g%%, risk %g%%, gamma %g, or1 %g, or2 %g, ur1 %g, ur2 %g, roundUp1 %g, roundUp2 %g" %
+              (samplesize, opts.margin, opts.alpha, opts.gamma, opts.or1, opts.or2, opts.ur1, opts.ur2, opts.roundUp1, opts.roundUp2))
+
 
 if __name__ == "__main__":
     main(parser)
