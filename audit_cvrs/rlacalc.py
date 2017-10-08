@@ -18,6 +18,9 @@ as described in:
    Mark Lindeman, Philip B. Stark, Vincent S. Yates
    https://www.usenix.org/system/files/conference/evtwote12/evtwote12-final27.pdf
 
+  Introduction to Risk-Limiting Election Audits, Statistics 157, Fall 2017, UC Berkeley
+   https://github.com/pbstark/S157F17/blob/master/audit.ipynb
+
 %InsertOptionParserUsage%
 
 With the -n option, specify the actual number of discrepancies of various
@@ -105,6 +108,10 @@ parser.add_option("-R", "--rawrates",
 parser.add_option("-o", "--nminFromRates",
   action="store_true", default=False,
   help="Calculate obsolete nminFromRates value")
+
+parser.add_option("-t", "--nminToGo",
+  action="store_true", default=False,
+  help="Calculate nminToGo value: calculate rates from o1 o2 u1 u2 / samplesize")
 
 parser.add_option("-l", "--level",
   action="store_true", default=False,
@@ -425,6 +432,35 @@ def KM_Expected_sample_size_rounded(alpha=0.1, gamma=1.03905, margin=0.05, or1=0
     return(n0)
 
 
+@hug.get(examples='audited=95&alpha=0.1&gamma=1.03905&margin=0.05&o1=0&o2=0&u1=0&u2=0')
+@hug.local()
+@annotate(dict(alpha=hug.types.float_number, gamma=hug.types.float_number, margin=hug.types.float_number,
+               o1=hug.types.number, o2=hug.types.number, u1=hug.types.number, u2=hug.types.number))
+def nminToGo(audited=95, alpha=0.1, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
+    """Return expected sample size during a ballot-level comparison Risk-Limiting Audit,
+    based on observed discrepancy rates.
+
+    Raises RLAValueError if any arguments are obviously invalid.
+
+    audited: number of samples audited so far
+    alpha: maximum risk level (alpha), as a fraction
+    gamma: error inflation factor, greater than 1.0
+    margin: margin of victory, as a fraction
+    o1: 1-vote overstatements
+    u1: 1-vote understatements
+    o2: 2-vote overstatements
+    u2: 2-vote understatements
+    """
+
+    logging.debug("%s, %s, %s, %f, %f, %f, %f" % (alpha, gamma, margin, o1, o2, u1, u2))
+
+    checkArgs(alpha, gamma, margin)
+
+    if o1 < 0  or  o2 < 0  or u1 < 0  or u2 < 0:
+        raise RLAValueError("nmin: Discrepancy counts %d %d %d %d must all be >= 0" % (o1, o2, u1, u2))
+
+    return KM_Expected_sample_size_rounded(alpha, gamma, margin, o1/audited, o2/audited, u1/audited, u2/audited, roundUp1=False)
+
 @hug.get(examples='alpha=0.1&gamma=1.03905&margin=0.05&or1=0.001&or2=0.0001&ur1=0.001&ur2=0.0001&roundUp1=1&rountUp2=')
 @hug.local()
 @annotate(dict(alpha=hug.types.float_number, gamma=hug.types.float_number, margin=hug.types.float_number,
@@ -526,7 +562,7 @@ def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, 
     return(n0)
 
 
-def KM_P_value(n=96, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
+def KM_P_value(n=95, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
     """Return P-values (risk level achieved?) for given sample size n and discrepancy counts.
     n: sample size
     margin: diluted margin; 
@@ -709,6 +745,11 @@ def main(parser):
         samplesize = nmin(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.o1, opts.o2, opts.u1, opts.u2)
         print("Sample size = %d for margin %g%%, risk %g%%, gamma %g, o1 %g, o2 %g, u1 %g, u2 %g" %
               (samplesize, opts.margin, opts.alpha, opts.gamma, opts.o1, opts.o2, opts.u1, opts.u2))
+
+    elif opts.nminToGo:
+        samplesize = nminToGo(opts.samplesize, opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.o1, opts.o2, opts.u1, opts.u2)
+        print("Expanded sample size = %g for samplesize %d, margin %g%%, risk %g%%, gamma %g, o1 %g, o2 %g, u1 %g, u2 %g" %
+              (samplesize, opts.samplesize, opts.margin, opts.alpha, opts.gamma, opts.o1, opts.o2, opts.u1, opts.u2))
 
     elif opts.level:
         samplesize = opts.samplesize
