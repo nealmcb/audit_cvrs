@@ -51,6 +51,14 @@ Run unit tests:
  rlacalc.py --test
 
 TODO:
+ check hug parameters, test more
+ check command line calling sequences and printouts
+ use different names if I change parameter order
+ update rlacalc.html
+ make "Note, can be less than nmin" example into test case
+ more p-value tests
+ test multi-times thru loop
+
  Model variance for ballot-polling audits, add estimates for quantiles.
  Add calculations for DiffSum, ClipAudit etc.
  Add pretty API documentation via pydoc3 and json2html
@@ -64,7 +72,7 @@ import os
 import sys
 import logging
 from optparse import OptionParser
-from math import log, ceil, isnan
+from math import log, exp, ceil, isnan
 # from numpy import log, ceil
 
 try:
@@ -101,7 +109,7 @@ parser.add_option("-n", "--nmin",
   action="store_true", default=False,
   help="Calculate nmin from observed discrepancies, not rates")
 
-parser.add_option("-R", "--rawrates",
+parser.add_option("--rawrates",
   action="store_true", default=False,
   help="Calculate KM_Expected_sample_size value, with no rounding")
 
@@ -113,13 +121,19 @@ parser.add_option("-t", "--nminToGo",
   action="store_true", default=False,
   help="Calculate nminToGo value: calculate rates from o1 o2 u1 u2 / samplesize")
 
-parser.add_option("-l", "--level",
+parser.add_option("--level",
   action="store_true", default=False,
   help="Calculate risk level, the p-value")
 
 parser.add_option("-p", "--polling",
   action="store_true", default=False,
-  help="Ballot polling audit")
+  help="Ballot polling audit. Add --level for levels")
+
+parser.add_option("-R", "--risk_level",
+  type="float", default=100.0,
+                  help="risk level based on ballots tallied so far."
+                  "Corresponds to one divided by the test statistic, as a fraction."
+                  "Default: 1.0 (corresponding to no ballots tallied)")
 
 parser.add_option("-r", "--alpha",
   type="float", default=10.0,
@@ -132,6 +146,22 @@ parser.add_option("-g", "--gamma",
 parser.add_option("-s", "--samplesize",
   type="int", default=95,
   help="Sample size, for --level option")
+
+parser.add_option("-W", "--winnervotes",
+  type="int", default=0,
+  help="Reported votes for the winner -p --level options")
+
+parser.add_option("-L", "--loservotes",
+  type="int", default=0,
+  help="Reported votes for the loser -p --level options")
+
+parser.add_option("-w", "--winnersamples",
+  type="int", default=0,
+  help="Sampled votes for the winner -p --level options")
+
+parser.add_option("-l", "--losersamples",
+  type="int", default=0,
+  help="Sampled votes for the winner -p --level options")
 
 parser.add_option("-b", "--binom",
   action="store_true", default=False,
@@ -563,7 +593,9 @@ def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, 
 
 
 def KM_P_value(n=95, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
-    """Return P-values (risk level achieved?) for given sample size n and discrepancy counts.
+    """Return P-values (risk level achieved) for a comparison audit with the
+    given sample size n and discrepancy counts.
+
     n: sample size
     margin: diluted margin; 
     From https://github.com/pbstark/S157F17/blob/master/audit.ipynb
@@ -580,22 +612,67 @@ def KM_P_value(n=95, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
            (1 + 1/gamma)**(-u2))
 
 
-@hug.get(examples='alpha=0.1&margin=0.05')
+def ballot_polling_risk_level(winner_votes, loser_votes, winner_obs, loser_obs):
+    """
+    Return the ballot polling risk level for a contest with the given overall
+    vote totals and observed votes on selected ballots during a ballot polling
+    risk-limiting audit.
+
+    This method should be called for each winner-loser pair (w,l).
+    calculate s_wl = (number of votes for w)/(number of votes for w + number of votes for l)
+    For each contest, for each winner-loser pair (w,l), set T_wl =1.
+    For each line in `all_contest_audit_details_by_cvr` with consensus = "YES",
+     change any T_wl values as indicated by the BRAVO algorithm.
+    The risk level achieved so far is the inverse of the resulting T_wl value.
+
+    >>> ballot_polling_risk_level(1410, 1132, 170, 135) # Custer County 2018
+    0.1342382069344729
+    >>> ballot_polling_risk_level(2894, 1695, 45, 32)   # Las Animas County 2018
+    0.47002027242290234
+    >>> ballot_polling_risk_level(0, 0, 2000, 0)
+    1.0
+    >>> ballot_polling_risk_level(2894, 0, 1130, 0)   # Test overflow
+    nan
+    >>> ballot_polling_risk_level(100000, 0, 50000, 0)   # Test overflow
+    nan
+
+    The code is equivalent to this, but uses logs to prevent overflow
+    T_wl = 1.0
+    T_wl = T_wl * ((s_wl)/0.5) ** winner_obs
+    T_wl = T_wl * ((1.0 - s_wl)/0.5) ** loser_obs
+    """
+
+    try:
+        s_wl = winner_votes / (winner_votes + loser_votes)
+    except ZeroDivisionError:
+        return 1.0
+
+    log_T_wl = log(1.0)
+    try:
+        log_T_wl = log_T_wl + ((log(s_wl) - log(0.5)) * winner_obs)
+        log_T_wl = log_T_wl + ((log(1.0 - s_wl) - log(0.5)) * loser_obs)
+        risk_level = log(1.0) - log_T_wl
+    except ValueError:
+        risk_level = float('NaN')
+
+    return exp(risk_level)
+
+
+@hug.get(examples='alpha=0.1&margin=0.05&risk_level=1.0')
 @hug.local()
-@annotate(dict(alpha=hug.types.float_number, margin=hug.types.float_number))
-def findAsn(alpha=0.1, margin=0.05):
+@annotate(dict(alpha=hug.types.float_number, margin=hug.types.float_number, risk_level=hug.types.float_number))
+def findAsn(alpha=0.1, margin=0.05, risk_level=1.0):
     """Return expected sample size for a ballot-polling Risk-Limiting Audit
     alpha: maximum risk level (alpha), as a fraction
     margin: margin of victory, as a fraction
-
-    TODO: enhance to allow for other than a perfect split
-    between 2 candidates, and various numbers of ballots.
+    risk_level: risk level for ballots tallied so far.
 
     Model variance for ballot-polling audits, add estimates for quantiles.
      Quantile           25th        50th    75th    90th    99th
      fraction of mean   0.41        0.71    1.25    2.09    4.64
 
     Based on Javascript code in https://www.stat.berkeley.edu/~stark/Java/Html/ballotPollTools.htm
+    and BRAVO paper
 
     Tests, based on table 1 in BRAVO: Ballot-polling Risk-limiting Audits to Verify Outcomes
       Mark Lindeman, Philip B. Stark, Vincent S. Yates
@@ -607,6 +684,10 @@ def findAsn(alpha=0.1, margin=0.05):
     2902.0
     >>> findAsn(margin=0.2)
     119.0
+    >>> findAsn(margin=0.2,)
+    119.0
+
+    TODO: add tests that use risk_level
 
     v_c: reported votes for the candidate
     p_c: reported proportion of ballots with votes for candidate
@@ -617,6 +698,9 @@ def findAsn(alpha=0.1, margin=0.05):
     vw = ballots * (0.5 + margin / 2.)
     vl = ballots * (0.5 - margin / 2.)
 
+    if vl <= 0:
+        return 4  # FIXME: for 100% margin, use same value as 99% margin
+
     if (vw > vl):
         sw = vw / (vw + vl)
         zw = log(2.0 * sw)
@@ -626,7 +710,7 @@ def findAsn(alpha=0.1, margin=0.05):
 
         logging.debug("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (alpha, margin, ballots, vw, vl, sw, zw, zl, pw, pl))
 
-        asn = ceil((log(1.0 / alpha) + zw / 2.0) / (((vw + vl) / ballots) * (pw * zw + pl * zl)))
+        asn = ceil((log(1.0 / alpha * risk_level) + zw / 2.0) / (((vw + vl) / ballots) * (pw * zw + pl * zl)))
 
     else:
         asn = float('nan')
@@ -738,8 +822,12 @@ def main(parser):
         sys.exit(0)
 
     if opts.polling:
-        samplesize = findAsn(opts.alpha / 100.0, opts.margin / 100.0)
-        print("Sample size = %d for ballot polling, margin %g%%, risk %g%%" % (samplesize, opts.margin, opts.alpha))
+        if opts.level:
+            risk_level = ballot_polling_risk_level(opts.winnervotes, opts.loservotes, opts.winnersamples, opts.losersamples)
+            print("%.4f" % risk_level)
+        else:
+            samplesize = findAsn(opts.alpha / 100.0, opts.margin / 100.0, opts.risk_level / 100.0)
+            print("Sample size = %d for ballot polling, margin %g%%, risk %g%%" % (samplesize, opts.margin, opts.alpha))
 
     elif opts.nmin:
         samplesize = nmin(opts.alpha / 100.0, opts.gamma, opts.margin / 100.0, opts.o1, opts.o2, opts.u1, opts.u2)
