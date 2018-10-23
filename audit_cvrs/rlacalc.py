@@ -524,7 +524,7 @@ def nminEst(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, ur1=0.
 @annotate(dict(alpha=hug.types.float_number, gamma=hug.types.float_number, margin=hug.types.float_number,
                or1=hug.types.float_number, or2=hug.types.float_number,
                ur1=hug.types.float_number, ur2=hug.types.float_number,
-               roundUp1=hug.types.boolean, roundUp2=hug.types.boolean))
+               roundUp1=hug.types.boolean, roundUp2=hug.types.boolean))  # smart_boolean when supported
 def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, ur1=0.001, ur2=0.0001, roundUp1=True, roundUp2=False):
     """Return expected sample size for a ballot-level comparison Risk-Limiting Audit
     alpha: maximum risk level (alpha), as a fraction
@@ -592,6 +592,15 @@ def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, 
     return(n0)
 
 
+def recalculateSamplesToAudit(num_audited, a, gamma, m, o1, o2, u1, u2):
+    """Sample size calculation from ColoradoRLA v1.1: 
+    https://github.com/FreeAndFair/ColoradoRLA/issues/695
+    """
+
+    nm = nmin(a, gamma, m, o1, o2, u1, u2)
+    return ceil(nm * (1 + ((o1 + o2) * 1.0 / num_audited)))
+
+
 def KM_P_value(n=95, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
     """Return P-values (risk level achieved) for a comparison audit with the
     given sample size n and discrepancy counts.
@@ -636,7 +645,7 @@ def ballot_polling_risk_level(winner_votes, loser_votes, winner_obs, loser_obs):
     >>> ballot_polling_risk_level(100000, 0, 50000, 0)   # Test overflow
     nan
 
-    The code is equivalent to this, but uses logs to prevent overflow
+    The core of the code is equivalent to this, but uses logs to prevent overflow
     T_wl = 1.0
     T_wl = T_wl * ((s_wl)/0.5) ** winner_obs
     T_wl = T_wl * ((1.0 - s_wl)/0.5) ** loser_obs
@@ -651,11 +660,12 @@ def ballot_polling_risk_level(winner_votes, loser_votes, winner_obs, loser_obs):
     try:
         log_T_wl = log_T_wl + ((log(s_wl) - log(0.5)) * winner_obs)
         log_T_wl = log_T_wl + ((log(1.0 - s_wl) - log(0.5)) * loser_obs)
-        risk_level = log(1.0) - log_T_wl
-    except ValueError:
+        log_risk_level = log(1.0) - log_T_wl
+        risk_level = exp(log_risk_level)
+    except (ValueError, OverflowError): # TODO: Add test case, reevaluate for OverflowError e.g. Lt Governer
         risk_level = float('NaN')
 
-    return exp(risk_level)
+    return risk_level
 
 
 @hug.get(examples='alpha=0.1&margin=0.05&risk_level=1.0')
@@ -672,7 +682,7 @@ def findAsn(alpha=0.1, margin=0.05, risk_level=1.0):
      fraction of mean   0.41        0.71    1.25    2.09    4.64
 
     Based on Javascript code in https://www.stat.berkeley.edu/~stark/Java/Html/ballotPollTools.htm
-    and BRAVO paper
+    and BRAVO paper section 9.2.
 
     Tests, based on table 1 in BRAVO: Ballot-polling Risk-limiting Audits to Verify Outcomes
       Mark Lindeman, Philip B. Stark, Vincent S. Yates
