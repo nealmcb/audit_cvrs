@@ -1,0 +1,5 @@
+rlacalc ballot-polling branch:
+ does it work with python 3?
+  with amazon lambda?
+ Add a test for OverflowError
+ add smart_boolean support to make web form make more sense(?)

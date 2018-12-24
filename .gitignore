@@ -1,3 +1,7 @@
 *.pyc
 .*swp
 db.sqlite3*
+.hypothesis
+.cache
+.ipynb_checkpoints
+.idea
