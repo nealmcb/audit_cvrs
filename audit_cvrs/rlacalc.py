@@ -613,26 +613,8 @@ def findAsn(alpha=0.1, margin=0.05):
     s_c: the fraction of valid votes cast for candidate  (ignoring undervotes etc)
     """
 
-    ballots = 100000
-    vw = ballots * (0.5 + margin / 2.)
-    vl = ballots * (0.5 - margin / 2.)
-
-    if (vw > vl):
-        #sw = vw / (vw + vl)
-        #zw = log(2.0 * sw)
-        #zl = log(2.0 * (1 - sw))
-        #pw = vw / ballots
-        #pl = vl / ballots
-
-        #logging.debug("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (alpha, margin, ballots, vw, vl, sw, zw, zl, pw, pl))
-        logging.debug("%s, %s" % (alpha, margin))
-
-        #asn = ceil((log(1.0 / alpha) + zw / 2.0) / (((vw + vl) / ballots) * (pw * zw + pl * zl)))
-        asn = ceil((2 * log(1/alpha) + log(1 + margin))/((1-margin)*log(1-margin)+(1+margin)*log(1+margin)))
-
-
-    else:
-        asn = float('nan')
+    logging.debug("%s, %s" % (alpha, margin))
+    asn = ceil((2 * log(1/alpha) + log(1 + margin))/((1-margin)*log(1-margin)+(1+margin)*log(1+margin)))
 
     return asn
 
