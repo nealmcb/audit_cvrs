@@ -302,7 +302,7 @@ def KM_Expected_sample_size(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or
     the risk limit has been reached should be checked via nmin().
 
     Raises RLAValueError if any arguments are obviously invalid.
-    Returns nan if the sample size 
+    Returns nan if the sample size
 
     Without error checking, note invalid result with invalid input (negative rates)
     rlacalc -m 5 -r 5 --roundUp1 0  --or2 -2 --ur2 -3
@@ -565,7 +565,7 @@ def nminFromRates(alpha=0.1, gamma=1.03905, margin=0.05, or1=0.001, or2=0.0001, 
 def KM_P_value(n=95, gamma=1.03905, margin=0.05, o1=0, o2=0, u1=0, u2=0):
     """Return P-values (risk level achieved?) for given sample size n and discrepancy counts.
     n: sample size
-    margin: diluted margin; 
+    margin: diluted margin;
     From https://github.com/pbstark/S157F17/blob/master/audit.ipynb
 
     >>> margin = (354040 - 337589)/(354040+337589+33234) # New Hampshire 2016
@@ -618,15 +618,18 @@ def findAsn(alpha=0.1, margin=0.05):
     vl = ballots * (0.5 - margin / 2.)
 
     if (vw > vl):
-        sw = vw / (vw + vl)
-        zw = log(2.0 * sw)
-        zl = log(2.0 * (1 - sw))
-        pw = vw / ballots
-        pl = vl / ballots
+        #sw = vw / (vw + vl)
+        #zw = log(2.0 * sw)
+        #zl = log(2.0 * (1 - sw))
+        #pw = vw / ballots
+        #pl = vl / ballots
 
-        logging.debug("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (alpha, margin, ballots, vw, vl, sw, zw, zl, pw, pl))
+        #logging.debug("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (alpha, margin, ballots, vw, vl, sw, zw, zl, pw, pl))
+        logging.debug("%s, %s" % (alpha, margin))
 
-        asn = ceil((log(1.0 / alpha) + zw / 2.0) / (((vw + vl) / ballots) * (pw * zw + pl * zl)))
+        #asn = ceil((log(1.0 / alpha) + zw / 2.0) / (((vw + vl) / ballots) * (pw * zw + pl * zl)))
+        asn = ceil((2 * log(1/alpha) + log(1 + margin))/((1-margin)*log(1-margin)+(1+margin)*log(1+margin)))
+
 
     else:
         asn = float('nan')
