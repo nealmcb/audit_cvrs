@@ -80,7 +80,7 @@ joblib==0.5.4.dev
 jockey==0.9.7
 jsonpickle==0.4.0
 juju==0.5
-keyring==0.9.2
+keyring==0.10
 language-selector==0.1
 launchpadlib==1.9.12
 lazr.restfulclient==0.12.0
