@@ -110,7 +110,7 @@ pep8==0.6.1
 pexpect==2.3
 piston-mini-client==0.7.2
 protobuf==2.4.1
-psutil==0.4.1
+psutil==5.6.6
 pyOpenSSL==0.12
 pyPdf==1.13
 pyasn1==0.0.11a
