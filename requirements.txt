@@ -72,7 +72,7 @@ gdata==2.0.14
 gnome-activity-journal==0.8.0
 googlecl==0.9.13
 hamster-indicator==0.0.0
-httplib2==0.7.2
+httplib2==0.18.0
 indicator-weather==11.05.31
 iotop==0.4.4
 ipython==0.13.2
