@@ -38,6 +38,10 @@ The eventual goals of this software are:
 
 # Installation
 
+**NOTE: The Django-related code here is out-of-date and was last tested in 2016 with versions of
+Django and other related packages which are now known to have high-severity security vulnerabilities.
+Before using the Django-related code, it must be ported to a recent version of Django.**
+
 Tested on Ubuntu Trusty 14.04 with Django 1.9
 
 First install necessary packages:
