@@ -4,7 +4,7 @@ BzrTools==2.5.0
 CDDB==1.4
 Cheetah==2.4.4
 Cython==0.15.1
-Django==1.6.5
+Django==1.11.29
 GnuPGInterface==0.3.2
 Jinja2==2.6
 M2Crypto==0.21.1
