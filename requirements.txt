@@ -16,7 +16,7 @@ MySQL-python==1.2.3
 PAM==0.4.2
 PIL==1.1.7
 PyBluez==0.18
-PyYAML==3.10
+PyYAML==5.4
 Pygments==1.4
 Pyro==3.14
 SOAPpy==0.12.0
