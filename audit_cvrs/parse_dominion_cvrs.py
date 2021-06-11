@@ -237,7 +237,12 @@ def parse():
 
     import pandas as pd
     df = pd.DataFrame.from_dict(contestBallotsByBatchManager, orient='index').transpose()
+
+    # Print description statistics for each contest of number of ballots by batch
+    # FIXME: assumes a single tabulator. need to combine tabulator and batch ids....
+
     # hmmm - how to add the contest name (Description) to the mix? df['Contest'] = apply(
+    # Use option_context to print all rows and columns out, no maximums
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
         print df.describe().transpose()
 
