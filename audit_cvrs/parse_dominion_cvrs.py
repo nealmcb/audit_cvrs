@@ -64,14 +64,14 @@ def parse():
 
         contestManifest = json.loads(rawJson)
 
-        contests = collections.OrderedDict()
+        all_contests = collections.OrderedDict()
 
         for contest in contestManifest['List']:
-            contests[contest['Id']] = contest['Description']
+            all_contests[contest['Id']] = contest['Description']
 
-        numContests = len(contests)
+        numContests = len(all_contests)
 
-        logging.debug("Manifest for %d contests:\n%s" % (numContests, contests.items()))
+        logging.debug("Manifest for %d contests:\n%s" % (numContests, all_contests.items()))
 
     with zipf.open("CandidateManifest.json") as jsonFile:
         rawJson = jsonFile.read()
@@ -82,9 +82,9 @@ def parse():
         unordered_candidates = {}
 
         for candidate in candidateManifest['List']:
-            unordered_candidates[candidate['Id']] = "%s\t%s" % (contests[candidate['ContestId']], candidate['Description'])
+            unordered_candidates[candidate['Id']] = "%s\t%s" % (all_contests[candidate['ContestId']], candidate['Description'])
 
-        logging.debug(sorted(unordered_candidates.items()))
+        # same as below logging.debug("Sorted candidate items: %s" % sorted(unordered_candidates.items()))
 
     candidates = collections.OrderedDict(sorted(unordered_candidates.items()))
     numCandidates = len(candidates)
@@ -98,15 +98,15 @@ def parse():
     i = 0
     for id, name in candidates.iteritems():
         if "," in name:
-            print "Error: Found , in name"
+            pass # print "Error: Found , in name:", name
         headers += "%s," % name
         candidateIndex[id] = i
         i += 1
 
     headers = headers.strip(",")
 
-    logging.info("Found %d candidates:\n%s" % (numCandidates, candidates))
-    logging.info(candidateIndex)
+    logging.info("Found %d candidates:\n %s" % (numCandidates, candidates))
+    logging.info("Candidate Index by contest: %s" % candidateIndex)
 
     logging.info("First manifest item: %s" % candidateManifest['List'][1])
 
@@ -163,7 +163,15 @@ def parse():
 
                 voteArray = ["0"] * numCandidates
                 votes = ""
-                for contest in original['Contests']:
+                try:
+                    # e.g. in Dominion Democracy Suite version 4.21.3.0
+                    contests = original['Contests']
+                except KeyError:
+                    logging.debug("For %s, original doesn't have 'Contests' in it!\n Keys: %s\n Dump: %s" % (zipinfo.filename, original.keys(), original))
+                    # e.g. in Dominion Democracy Suite version 5.5.32.4
+                    contests = original['Cards'][0]['Contests']
+
+                for contest in contests:
                     contestBallots[contest['Id']] += 1
                     contestBallotsByBatch = contestBallotsByBatchManager.get(contest['Id'], collections.Counter())
                     contestBallotsByBatch[session['BatchId']] += 1
@@ -225,7 +233,7 @@ def parse():
     print contestBallots.most_common(10)
 
     for contestId in sorted(contestBallots):
-        logging.warning("%d Ballots for contest %s" % (contestBallots[contestId], contests[contestId]))
+        logging.warning("%d Ballots for contest %s" % (contestBallots[contestId], all_contests[contestId]))
 
     import pandas as pd
     df = pd.DataFrame.from_dict(contestBallotsByBatchManager, orient='index').transpose()
