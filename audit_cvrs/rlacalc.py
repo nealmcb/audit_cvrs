@@ -834,7 +834,7 @@ def main(parser):
     if opts.polling:
         if opts.level:
             risk_level = ballot_polling_risk_level(opts.winnervotes, opts.loservotes, opts.winnersamples, opts.losersamples)
-            print("%.4f" % risk_level)
+            print("Risk level: %.4g" % risk_level)
         else:
             samplesize = findAsn(opts.alpha / 100.0, opts.margin / 100.0, opts.risk_level / 100.0)
             print("Sample size = %d for ballot polling, margin %g%%, risk %g%%" % (samplesize, opts.margin, opts.alpha))
