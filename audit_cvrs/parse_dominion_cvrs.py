@@ -17,8 +17,10 @@ also produces test.lookup file, and summaries in debugging output
 Todo:
 
 Cleanup:
+  Produce clean cvr.csv file, moving later material to other files
+  Augment batch id for stats to make it unique: include tabulator id
+  Reduce volume of debug data
   Rip out unused "votes" variable
-  make into a proper module, usable from other code, with a main
 
 Optionally record MarkDensity information (modifying current debugging code)
 Optionally record data on Modified (adjudicated) ballots
@@ -97,9 +99,7 @@ def parse():
     candidateIndex = {}
     i = 0
     for id, name in candidates.iteritems():
-        if "," in name:
-            pass # print "Error: Found , in name:", name
-        headers += "%s," % name
+        headers += '"%s",' % name
         candidateIndex[id] = i
         i += 1
 
