@@ -75,7 +75,7 @@ hamster-indicator==0.0.0
 httplib2==0.7.2
 indicator-weather==11.05.31
 iotop==0.4.4
-ipython==0.13.2
+ipython==7.16.3
 joblib==0.5.4.dev
 jockey==0.9.7
 jsonpickle==0.4.0
