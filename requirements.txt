@@ -104,7 +104,7 @@ oneconf==0.2.8.1
 openshot==1.4.0
 optcomplete==1.2
 pandas==0.7.0
-paramiko==1.7.7.1
+paramiko==2.10.1
 pdfshuffler==0.6.0
 pep8==0.6.1
 pexpect==2.3
