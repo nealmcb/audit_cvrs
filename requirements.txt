@@ -96,7 +96,7 @@ mercurial==2.0.2
 networkx==1.6
 nose==1.1.2
 numexpr==1.4.2
-numpy==1.6.1
+numpy==1.21.0
 nvidia-common==0.0.0
 oauth==1.0.1
 onboard==0.97.1
