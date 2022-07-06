@@ -90,7 +90,7 @@ lockfile==0.8
 logilab-astng==0.23.0
 logilab-common==0.57.1
 louis==2.3.0
-lxml==2.3.2
+lxml==4.9.1
 matplotlib==1.1.1rc
 mercurial==2.0.2
 networkx==1.6
