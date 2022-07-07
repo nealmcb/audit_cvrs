@@ -88,7 +88,7 @@ lazr.uri==1.0.3
 llfuse==0.37.1
 lockfile==0.8
 logilab-astng==0.23.0
-logilab-common==0.57.1
+logilab-common==0.61.0
 louis==2.3.0
 lxml==2.3.2
 matplotlib==1.1.1rc
