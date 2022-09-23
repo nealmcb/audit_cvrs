@@ -109,7 +109,7 @@ pdfshuffler==0.6.0
 pep8==0.6.1
 pexpect==2.3
 piston-mini-client==0.7.2
-protobuf==2.4.1
+protobuf==3.18.3
 psutil==0.4.1
 pyOpenSSL==0.12
 pyPdf==1.13
