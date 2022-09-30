@@ -76,7 +76,7 @@ httplib2==0.7.2
 indicator-weather==11.05.31
 iotop==0.4.4
 ipython==0.13.2
-joblib==0.5.4.dev
+joblib==1.2.0
 jockey==0.9.7
 jsonpickle==0.4.0
 juju==0.5
